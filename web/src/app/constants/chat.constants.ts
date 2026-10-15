@@ -24,6 +24,8 @@ export const SETTINGS_CLOSE_LABEL = 'Закрыть настройки';
 
 export const MAX_STORED_MESSAGES = 100;
 
+export const MAX_HISTORY_TURNS = 20;
+
 export const CLEAR_CONFIRM_TIMEOUT_MS = 3000;
 
 export const IMAGE_MAX_SIDE_PX = 1600;

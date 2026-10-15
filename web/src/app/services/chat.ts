@@ -13,6 +13,7 @@ import {
   CHANGE_RUN_LINK_LABEL,
   CHANGE_STATE_TEXT,
   CHANGE_TRACKED_STATES,
+  MAX_HISTORY_TURNS,
   WELCOME_TEXT,
 } from '../constants';
 import {
@@ -355,6 +356,7 @@ export class Chat {
         (message) =>
           !message.pending && !message.failed && !message.edit && message.text.trim().length > 0,
       )
-      .map((message) => ({ role: message.role, text: message.text }));
+      .map((message) => ({ role: message.role, text: message.text }))
+      .slice(-MAX_HISTORY_TURNS);
   }
 }
