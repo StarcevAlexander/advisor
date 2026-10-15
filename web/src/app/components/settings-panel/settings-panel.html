@@ -1,0 +1,34 @@
+<dialog
+  #dialog
+  class="panel"
+  aria-labelledby="settings-title"
+  (click)="onDialogClicked($event)"
+  (close)="open.set(false)"
+>
+  <div class="panel__body">
+    <header class="panel__header">
+      <h2 id="settings-title" class="panel__title">{{ title }}</h2>
+      <button type="button" class="panel__close" [attr.aria-label]="closeLabel" (click)="open.set(false)">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+          <path
+            d="M6 6l12 12M18 6L6 18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </header>
+    @if (speech.synthesisSupported) {
+      <label class="panel__toggle">
+        <input
+          type="checkbox"
+          [checked]="settings.speakReplies()"
+          (change)="onSpeakRepliesChanged($event)"
+        />
+        {{ speakRepliesLabel }}
+      </label>
+    }
+  </div>
+</dialog>

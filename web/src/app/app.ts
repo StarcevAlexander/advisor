@@ -13,11 +13,12 @@ import {
 import { AccessGate } from './components/access-gate/access-gate';
 import { Composer } from './components/composer/composer';
 import { MessageBubble } from './components/message-bubble/message-bubble';
+import { SettingsPanel } from './components/settings-panel/settings-panel';
 import {
   CLEAR_CONFIRM_TIMEOUT_MS,
   COMPOSER_PLACEHOLDERS,
   EDIT_MODE_HINT,
-  SPEAK_REPLIES_LABEL,
+  SETTINGS_OPEN_LABEL,
   UPDATE_BUTTON_LABEL,
 } from './constants';
 import { ComposerPayload } from './models';
@@ -29,7 +30,7 @@ import { Speech } from './services/speech';
 import { APP_VERSION } from './version';
 
 @Component({
-  imports: [AccessGate, Composer, MessageBubble],
+  imports: [AccessGate, Composer, MessageBubble, SettingsPanel],
   selector: 'app-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',
@@ -40,13 +41,14 @@ export class App {
   protected readonly speech = inject(Speech);
   protected readonly settings = inject(Settings);
   protected readonly appUpdate = inject(AppUpdate);
-  protected readonly speakRepliesLabel = SPEAK_REPLIES_LABEL;
+  protected readonly settingsOpenLabel = SETTINGS_OPEN_LABEL;
   protected readonly updateLabel = UPDATE_BUTTON_LABEL;
   protected readonly version = APP_VERSION;
   protected readonly placeholders = COMPOSER_PLACEHOLDERS;
   protected readonly editHint = EDIT_MODE_HINT;
   protected readonly composing = signal(false);
   protected readonly confirmingClear = signal(false);
+  protected readonly settingsOpen = signal(false);
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly log = viewChild.required<ElementRef<HTMLElement>>('log');
@@ -93,14 +95,6 @@ export class App {
   protected onLogScrolled(): void {
     const element = this.log().nativeElement;
     this.stickToBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 48;
-  }
-
-  protected onSpeakRepliesChanged(event: Event): void {
-    const enabled = (event.target as HTMLInputElement).checked;
-    this.settings.setSpeakReplies(enabled);
-    if (!enabled) {
-      this.speech.stopSpeaking();
-    }
   }
 
   protected onClearClicked(): void {
