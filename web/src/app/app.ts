@@ -4,7 +4,6 @@ import {
   ElementRef,
   afterNextRender,
   afterRenderEffect,
-  effect,
   inject,
   signal,
   viewChild,
@@ -13,7 +12,12 @@ import { AccessGate } from './components/access-gate/access-gate';
 import { Composer } from './components/composer/composer';
 import { MessageBubble } from './components/message-bubble/message-bubble';
 import { MicButton } from './components/mic-button/mic-button';
-import { CLEAR_CONFIRM_TIMEOUT_MS, COMPOSER_PLACEHOLDERS, EDIT_MODE_HINT } from './constants';
+import {
+  CLEAR_CONFIRM_TIMEOUT_MS,
+  COMPOSER_PLACEHOLDERS,
+  EDIT_MODE_HINT,
+  UPDATE_BUTTON_LABEL,
+} from './constants';
 import { ComposerPayload } from './models';
 import { Access } from './services/access';
 import { AppUpdate } from './services/app-update';
@@ -31,7 +35,8 @@ export class App {
   protected readonly access = inject(Access);
   protected readonly chat = inject(Chat);
   protected readonly speech = inject(Speech);
-  private readonly appUpdate = inject(AppUpdate);
+  protected readonly appUpdate = inject(AppUpdate);
+  protected readonly updateLabel = UPDATE_BUTTON_LABEL;
   protected readonly version = APP_VERSION;
   protected readonly placeholders = COMPOSER_PLACEHOLDERS;
   protected readonly editHint = EDIT_MODE_HINT;
@@ -47,14 +52,6 @@ export class App {
       this.chat.messages();
       this.stickToBottom = true;
       this.scrollToBottom('smooth');
-    });
-
-    effect(() => {
-      const idle =
-        !this.composing() && !this.chat.busy() && this.speech.recognitionState() !== 'listening';
-      if (this.appUpdate.ready() && idle) {
-        void this.appUpdate.apply();
-      }
     });
 
     afterNextRender(() => {

@@ -22,11 +22,25 @@ export interface ChatMessage {
   linkLabel?: string;
   changeId?: string;
   changeState?: ChangeState;
+  plan?: ChangePlan;
 }
 
 export type ChatMode = 'ask' | 'edit';
 
+export interface PlanStep {
+  id: string;
+  text: string;
+  selected: boolean;
+}
+
+export interface ChangePlan {
+  request: string;
+  steps: PlanStep[];
+}
+
 export type ChangeState =
+  | 'plan'
+  | 'cancelled'
   | 'queued'
   | 'working'
   | 'ready'
@@ -47,6 +61,7 @@ export interface StoredMessage {
   linkLabel?: string;
   changeId?: string;
   changeState?: ChangeState;
+  plan?: ChangePlan;
 }
 
 export interface ComposerPayload {

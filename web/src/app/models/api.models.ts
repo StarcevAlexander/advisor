@@ -15,8 +15,13 @@ export interface ChangeReply {
   url: string;
 }
 
+export interface ChangePlanReply {
+  summary: string;
+  steps: string[];
+}
+
 export interface ChangeStatus {
-  state: Exclude<ChangeState, 'unknown'>;
+  state: Exclude<ChangeState, 'unknown' | 'plan' | 'cancelled'>;
   pullUrl?: string;
   pullNumber?: number;
   runUrl?: string;

@@ -1,8 +1,30 @@
 import { Service } from '@angular/core';
 import { CHANGE_STATES, CHAT_HISTORY_STORAGE_KEY, MAX_STORED_MESSAGES } from '../constants';
-import { ChangeState, ChatMessage, MessageRole, StoredMessage } from '../models';
+import { ChangePlan, ChangeState, ChatMessage, MessageRole, StoredMessage } from '../models';
 
 const ROLES: readonly MessageRole[] = ['user', 'assistant'];
+
+function isChangePlan(value: unknown): value is ChangePlan {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate['request'] === 'string' &&
+    Array.isArray(candidate['steps']) &&
+    candidate['steps'].every((step: unknown) => {
+      if (typeof step !== 'object' || step === null) {
+        return false;
+      }
+      const item = step as Record<string, unknown>;
+      return (
+        typeof item['id'] === 'string' &&
+        typeof item['text'] === 'string' &&
+        typeof item['selected'] === 'boolean'
+      );
+    })
+  );
+}
 
 function isStoredMessage(value: unknown): value is StoredMessage {
   if (typeof value !== 'object' || value === null) {
@@ -20,7 +42,8 @@ function isStoredMessage(value: unknown): value is StoredMessage {
     (candidate['linkLabel'] === undefined || typeof candidate['linkLabel'] === 'string') &&
     (candidate['changeId'] === undefined || typeof candidate['changeId'] === 'string') &&
     (candidate['changeState'] === undefined ||
-      CHANGE_STATES.includes(candidate['changeState'] as ChangeState))
+      CHANGE_STATES.includes(candidate['changeState'] as ChangeState)) &&
+    (candidate['plan'] === undefined || isChangePlan(candidate['plan']))
   );
 }
 
@@ -47,6 +70,7 @@ export class ChatHistory {
         linkLabel: stored.linkLabel,
         changeId: stored.changeId,
         changeState: stored.changeState,
+        plan: stored.plan,
       }));
     } catch {
       return [];
@@ -67,6 +91,7 @@ export class ChatHistory {
         linkLabel: message.linkLabel,
         changeId: message.changeId,
         changeState: message.changeState,
+        plan: message.plan,
       }));
     try {
       localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(stored));

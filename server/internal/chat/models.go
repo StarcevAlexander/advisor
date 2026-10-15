@@ -27,7 +27,17 @@ type Responder interface {
 	Reply(ctx context.Context, conversation Conversation) (string, error)
 }
 
+type Plan struct {
+	Summary string   `json:"summary"`
+	Steps   []string `json:"steps"`
+}
+
+type Planner interface {
+	Plan(ctx context.Context, request string) (Plan, error)
+}
+
 var (
 	ErrUnsupportedAttachment = errors.New("unsupported attachment")
 	ErrEmptyReply            = errors.New("empty reply")
+	ErrBadPlan               = errors.New("bad plan")
 )

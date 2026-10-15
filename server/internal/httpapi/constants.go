@@ -12,6 +12,7 @@ const HealthPath = "/healthz"
 const (
 	ChangeRoute                 = "POST /api/change"
 	ChangeStatusRoute           = "GET /api/change/{id}"
+	ChangePlanRoute             = "POST /api/change/plan"
 	MaxChangeBodyBytes    int64 = 16 << 10
 	MaxChangeRequestRunes       = 2000
 	ChangeAcceptedMessage       = "Заявка принята. Claude подготовит изменение за несколько минут. Когда оно появится в списке, проверьте и примите его."
@@ -47,5 +48,6 @@ const (
 	MsgChangeTooLong   = "Описание изменения слишком длинное"
 	MsgBadChangeID     = "Неверный номер заявки"
 	MsgStatusFailed    = "Не удалось узнать статус заявки"
+	MsgPlanFailed      = "Не удалось обдумать правку, попробуйте ещё раз"
 	MsgChangeFailed    = "Не удалось отправить заявку на изменение, попробуйте ещё раз"
 )

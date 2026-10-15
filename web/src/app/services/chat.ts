@@ -6,6 +6,8 @@ import {
   CHANGE_ACTIVE_STATES,
   CHANGE_FIRST_POLL_DELAY_MS,
   CHANGE_LIST_LINK_LABEL,
+  CHANGE_REQUEST_MAX_RUNES,
+  CHANGE_REQUEST_STEPS_HEADER,
   CHANGE_REVIEW_LIMIT_MS,
   CHANGE_REVIEW_POLL_INTERVAL_MS,
   CHANGE_RUN_LINK_LABEL,
@@ -16,6 +18,7 @@ import {
 import {
   ApiTurn,
   Attachment,
+  ChangePlan,
   ChangeState,
   ChangeStatus,
   ChatApiError,
@@ -71,10 +74,47 @@ export class Chat {
 
     if (editing) {
       this.mode.set('ask');
-      void this.requestChange(pendingId, text, payload.attachments.length);
+      void this.requestPlan(pendingId, text, payload.attachments.length);
       return;
     }
     void this.requestReply(pendingId, { text, attachments: payload.attachments }, history);
+  }
+
+  toggleStep(messageId: string, stepId: string): void {
+    const plan = this.findMessage(messageId)?.plan;
+    if (!plan || this.findMessage(messageId)?.changeState !== 'plan') {
+      return;
+    }
+    this.updateMessage(messageId, {
+      plan: {
+        ...plan,
+        steps: plan.steps.map((step) =>
+          step.id === stepId ? { ...step, selected: !step.selected } : step,
+        ),
+      },
+    });
+  }
+
+  confirmChange(id: string): void {
+    const message = this.findMessage(id);
+    const plan = message?.plan;
+    if (this.busy() || message?.changeState !== 'plan' || !plan) {
+      return;
+    }
+    const request = this.composeRequest(plan);
+    if (!request) {
+      return;
+    }
+    this.updateMessage(id, { text: '', pending: true, changeState: undefined, plan: undefined });
+    this.busy.set(true);
+    void this.requestChange(id, request, 0);
+  }
+
+  cancelChange(id: string): void {
+    if (this.findMessage(id)?.changeState === 'plan') {
+      this.updateMessage(id, { plan: undefined });
+      this.applyChangeState(id, 'cancelled');
+    }
   }
 
   remove(id: string): void {
@@ -123,6 +163,51 @@ export class Chat {
     } catch (error) {
       this.failPending(pendingId, error);
     }
+  }
+
+  private async requestPlan(
+    pendingId: string,
+    request: string,
+    attachmentsCount: number,
+  ): Promise<void> {
+    try {
+      if (attachmentsCount > 0) {
+        throw new ChatApiError(API_MESSAGES.editNoFiles);
+      }
+      const reply = await this.api.planChange(request);
+      if (reply.steps.length === 0) {
+        this.updateMessage(pendingId, { text: reply.summary, pending: false, failed: false });
+        return;
+      }
+      this.updateMessage(pendingId, {
+        text: reply.summary,
+        pending: false,
+        failed: false,
+        changeState: 'plan',
+        plan: {
+          request,
+          steps: reply.steps.map((text) => ({ id: crypto.randomUUID(), text, selected: true })),
+        },
+      });
+    } catch (error) {
+      this.failPending(pendingId, error);
+    }
+  }
+
+  private composeRequest(plan: ChangePlan): string | undefined {
+    const approved = plan.steps.filter((step) => step.selected);
+    if (approved.length === 0) {
+      return undefined;
+    }
+    const list = approved.map((step, index) => `${index + 1}. ${step.text}`).join('\n');
+    const tail = `\n\n${CHANGE_REQUEST_STEPS_HEADER}\n${list}`;
+    const room = CHANGE_REQUEST_MAX_RUNES - Array.from(tail).length;
+    const original = Array.from(plan.request);
+    const head =
+      original.length > room
+        ? `${original.slice(0, Math.max(room - 1, 0)).join('')}…`
+        : plan.request;
+    return `${head}${tail}`;
   }
 
   private async requestChange(

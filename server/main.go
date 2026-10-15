@@ -50,8 +50,10 @@ func run() error {
 		})
 	}
 
+	claude := chat.NewClaude(cfg.APIKey, cfg.Model)
 	handler := httpapi.NewHandler(httpapi.Options{
-		Responder:      chat.NewClaude(cfg.APIKey, cfg.Model),
+		Responder:      claude,
+		Planner:        claude,
 		Changes:        changeRequester,
 		Password:       cfg.AccessPassword,
 		AllowedOrigins: cfg.AllowedOrigins,

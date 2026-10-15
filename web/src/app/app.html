@@ -21,6 +21,11 @@
       >
         {{ confirmingClear() ? 'Точно очистить?' : 'Очистить' }}
       </button>
+      @if (appUpdate.ready()) {
+        <button type="button" class="shell__update" (click)="appUpdate.apply()">
+          {{ updateLabel }}
+        </button>
+      }
       <span class="shell__version">v{{ version }}</span>
     </div>
   </header>
@@ -32,6 +37,10 @@
           [message]="message"
           [canSpeak]="speech.synthesisSupported"
           [speaking]="speech.speakingId() === message.id"
+          [locked]="chat.busy()"
+          (stepToggled)="chat.toggleStep(message.id, $event)"
+          (confirmRequested)="chat.confirmChange(message.id)"
+          (cancelRequested)="chat.cancelChange(message.id)"
           (speakRequested)="speech.speak(message.id, message.text)"
           (stopRequested)="speech.stopSpeaking()"
           (deleteRequested)="onDeleteRequested(message.id)"

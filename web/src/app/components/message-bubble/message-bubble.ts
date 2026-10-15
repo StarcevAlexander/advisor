@@ -1,6 +1,12 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, input, output } from '@angular/core';
-import { CHANGE_ACTIVE_STATES, CHANGE_BADGE_TEXT, CHANGE_LIST_LINK_LABEL } from '../../constants';
+import {
+  CHANGE_ACTIVE_STATES,
+  CHANGE_BADGE_TEXT,
+  CHANGE_CANCEL_LABEL,
+  CHANGE_CONFIRM_LABEL,
+  CHANGE_LIST_LINK_LABEL,
+} from '../../constants';
 import { ChatMessage } from '../../models';
 
 @Component({
@@ -13,11 +19,24 @@ export class MessageBubble {
   readonly message = input.required<ChatMessage>();
   readonly speaking = input(false);
   readonly canSpeak = input(false);
+  readonly locked = input(false);
   readonly speakRequested = output();
   readonly stopRequested = output();
   readonly deleteRequested = output();
+  readonly stepToggled = output<string>();
+  readonly confirmRequested = output();
+  readonly cancelRequested = output();
 
   protected readonly badgeText = CHANGE_BADGE_TEXT;
+  protected readonly confirmLabel = CHANGE_CONFIRM_LABEL;
+  protected readonly cancelLabel = CHANGE_CANCEL_LABEL;
+  protected readonly planSteps = computed(() => {
+    const message = this.message();
+    return message.changeState === 'plan' ? (message.plan?.steps ?? []) : [];
+  });
+  protected readonly selectedCount = computed(
+    () => this.planSteps().filter((step) => step.selected).length,
+  );
   protected readonly defaultLinkLabel = CHANGE_LIST_LINK_LABEL;
   protected readonly fromUser = computed(() => this.message().role === 'user');
   protected readonly working = computed(() => {

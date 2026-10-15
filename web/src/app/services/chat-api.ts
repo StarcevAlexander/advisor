@@ -3,6 +3,7 @@ import { Service, inject, isDevMode } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import {
   API_CHANGE_PATH,
+  API_CHANGE_PLAN_PATH,
   API_CHAT_PATH,
   API_DEV_URL,
   API_MESSAGES,
@@ -14,6 +15,7 @@ import {
   ApiErrorBody,
   ApiReply,
   ApiTurn,
+  ChangePlanReply,
   ChangeReply,
   ChangeStatus,
   ChatApiError,
@@ -36,6 +38,10 @@ export class ChatApi {
 
     const response = await this.send<ApiReply>('POST', API_CHAT_PATH, body);
     return response.reply;
+  }
+
+  planChange(request: string): Promise<ChangePlanReply> {
+    return this.send<ChangePlanReply>('POST', API_CHANGE_PLAN_PATH, { request });
   }
 
   requestChange(request: string): Promise<ChangeReply> {

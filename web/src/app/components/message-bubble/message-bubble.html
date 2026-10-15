@@ -31,6 +31,37 @@
     </p>
   }
 
+  @if (planSteps().length > 0) {
+    <ul class="bubble__plan">
+      @for (step of planSteps(); track step.id) {
+        <li>
+          <label class="bubble__step">
+            <input
+              type="checkbox"
+              [checked]="step.selected"
+              [disabled]="locked()"
+              (change)="stepToggled.emit(step.id)"
+            />
+            <span>{{ step.text }}</span>
+          </label>
+        </li>
+      }
+    </ul>
+    <div class="bubble__confirm">
+      <button
+        type="button"
+        class="bubble__confirm-send"
+        [disabled]="locked() || selectedCount() === 0"
+        (click)="confirmRequested.emit()"
+      >
+        {{ confirmLabel }} ({{ selectedCount() }})
+      </button>
+      <button type="button" class="bubble__speak" (click)="cancelRequested.emit()">
+        {{ cancelLabel }}
+      </button>
+    </div>
+  }
+
   @if (message().link; as link) {
     <a class="bubble__link" [href]="link" target="_blank" rel="noopener noreferrer">
       {{ message().linkLabel ?? defaultLinkLabel }}

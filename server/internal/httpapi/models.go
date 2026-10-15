@@ -10,6 +10,7 @@ import (
 
 type Options struct {
 	Responder      chat.Responder
+	Planner        chat.Planner
 	Changes        changes.Requester
 	Password       string
 	AllowedOrigins []string

@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import {
   API_CHANGE_PATH,
+  API_CHANGE_PLAN_PATH,
   API_CHAT_PATH,
   API_DEV_URL,
   API_MESSAGES,
@@ -174,17 +175,65 @@ describe('Chat', () => {
 
   describe('edit mode', () => {
     const changeUrl = `${API_DEV_URL}${API_CHANGE_PATH}`;
+    const planUrl = `${API_DEV_URL}${API_CHANGE_PLAN_PATH}`;
+    const plan = {
+      summary: 'Сделаю кнопку красной',
+      steps: ['Кнопка станет красной', 'Текст станет белым'],
+    };
 
-    it('sends the message as a change request, shows the link and returns to ask mode', async () => {
+    async function proposeIdea(text = 'Сделай кнопку красной'): Promise<string> {
+      chat.toggleEditMode();
+      chat.send({ text, attachments: [] });
+      http.expectOne(planUrl).flush(plan);
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+      return chat.messages()[2].id;
+    }
+
+    it('thinks the idea over first and shows the plan with every step selected', async () => {
       chat.toggleEditMode();
       expect(chat.mode()).toBe('edit');
 
       chat.send({ text: 'Сделай кнопку красной', attachments: [] });
       expect(chat.mode()).toBe('ask');
-
-      const request = http.expectOne(changeUrl);
+      const request = http.expectOne(planUrl);
       expect(request.request.body).toEqual({ request: 'Сделай кнопку красной' });
       expect(request.request.headers.get('Authorization')).toBe('Bearer secret-pass');
+      request.flush(plan);
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+
+      http.expectNone(changeUrl);
+      const reply = chat.messages()[2];
+      expect(reply.text).toBe('Сделаю кнопку красной');
+      expect(reply.changeState).toBe('plan');
+      expect(reply.edit).toBe(true);
+      expect(reply.plan?.steps.map((step) => step.text)).toEqual(plan.steps);
+      expect(reply.plan?.steps.every((step) => step.selected)).toBe(true);
+    });
+
+    it('treats a plan without steps as a plain answer and offers nothing to send', async () => {
+      chat.toggleEditMode();
+      chat.send({ text: 'Может, что-нибудь поменять?', attachments: [] });
+      http.expectOne(planUrl).flush({ summary: 'Уточните, что именно поменять', steps: [] });
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+
+      const reply = chat.messages()[2];
+      expect(reply.text).toBe('Уточните, что именно поменять');
+      expect(reply.changeState).toBeUndefined();
+      expect(reply.plan).toBeUndefined();
+    });
+
+    it('sends only the approved steps as the change request', async () => {
+      const id = await proposeIdea();
+      const [first] = chat.messages()[2].plan?.steps ?? [];
+
+      chat.toggleStep(id, first.id);
+      chat.confirmChange(id);
+
+      const request = http.expectOne(changeUrl);
+      const body = request.request.body as { request: string };
+      expect(body.request).toContain('Сделай кнопку красной');
+      expect(body.request).toContain('1. Текст станет белым');
+      expect(body.request).not.toContain('Кнопка станет красной');
       request.flush({
         id: '0123456789ab',
         message: 'Заявка принята',
@@ -197,13 +246,50 @@ describe('Chat', () => {
       expect(reply.changeId).toBe('0123456789ab');
       expect(reply.changeState).toBe('queued');
       expect(reply.link).toBe('https://github.com/me/app/pulls');
-      expect(reply.edit).toBe(true);
+      expect(reply.plan).toBeUndefined();
       expect(reply.failed).toBe(false);
     });
 
+    it('does not send when no step is approved', async () => {
+      const id = await proposeIdea();
+      chat.messages()[2].plan?.steps.forEach((step) => chat.toggleStep(id, step.id));
+
+      chat.confirmChange(id);
+
+      http.expectNone(changeUrl);
+      expect(chat.messages()[2].changeState).toBe('plan');
+    });
+
+    it('drops the plan on cancel without sending anything', async () => {
+      const id = await proposeIdea();
+
+      chat.cancelChange(id);
+      chat.confirmChange(id);
+
+      http.expectNone(changeUrl);
+      expect(chat.messages()[2].changeState).toBe('cancelled');
+      expect(chat.messages()[2].text).toBe(CHANGE_STATE_TEXT.cancelled);
+      expect(chat.messages()[2].plan).toBeUndefined();
+    });
+
+    it('keeps the plan across sessions', async () => {
+      await proposeIdea();
+      TestBed.tick();
+
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [provideHttpClient(), provideHttpClientTesting()],
+      });
+      const restored = TestBed.inject(Chat);
+
+      const reply = restored.messages()[2];
+      expect(reply.changeState).toBe('plan');
+      expect(reply.plan?.steps.length).toBe(2);
+    });
+
     it('keeps change requests out of the conversation history', async () => {
-      chat.toggleEditMode();
-      chat.send({ text: 'Сделай кнопку красной', attachments: [] });
+      const id = await proposeIdea();
+      chat.confirmChange(id);
       http.expectOne(changeUrl).flush({ message: 'Заявка принята', url: 'u' });
       await vi.waitFor(() => expect(chat.busy()).toBe(false));
 
@@ -212,7 +298,7 @@ describe('Chat', () => {
       const history = JSON.parse(body.get('history') as string) as { text: string }[];
 
       expect(history.map((turn) => turn.text)).not.toContain('Сделай кнопку красной');
-      expect(history.map((turn) => turn.text)).not.toContain('Заявка принята');
+      expect(history.map((turn) => turn.text)).not.toContain('Сделаю кнопку красной');
     });
 
     it('refuses attachments in edit mode without calling the server', async () => {
@@ -225,6 +311,7 @@ describe('Chat', () => {
       });
       await vi.waitFor(() => expect(chat.busy()).toBe(false));
 
+      http.expectNone(planUrl);
       http.expectNone(changeUrl);
       expect(chat.messages()[2].failed).toBe(true);
       expect(chat.messages()[2].text).toBe(API_MESSAGES.editNoFiles);
@@ -234,7 +321,7 @@ describe('Chat', () => {
       chat.toggleEditMode();
       chat.send({ text: 'Поправь', attachments: [] });
       http
-        .expectOne(changeUrl)
+        .expectOne(planUrl)
         .flush(
           { error: 'Правка приложения не настроена на сервере' },
           { status: 501, statusText: 'x' },
@@ -264,6 +351,11 @@ describe('Chat', () => {
     async function submitChange(): Promise<void> {
       chat.toggleEditMode();
       chat.send({ text: 'Сделай кнопку красной', attachments: [] });
+      http
+        .expectOne(`${API_DEV_URL}${API_CHANGE_PLAN_PATH}`)
+        .flush({ summary: 'План', steps: ['Шаг'] });
+      await vi.advanceTimersByTimeAsync(0);
+      chat.confirmChange(chat.messages()[2].id);
       http.expectOne(changeUrl).flush({ id: changeId, message: 'ok', url: 'https://x.test/pulls' });
       await vi.advanceTimersByTimeAsync(0);
     }

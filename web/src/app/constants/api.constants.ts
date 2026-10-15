@@ -6,6 +6,8 @@ export const API_CHAT_PATH = '/api/chat';
 
 export const API_CHANGE_PATH = '/api/change';
 
+export const API_CHANGE_PLAN_PATH = '/api/change/plan';
+
 export const HTTP_UNAUTHORIZED = 401;
 
 export const HTTP_OFFLINE = 0;

@@ -61,7 +61,8 @@
 }
 
 .shell__tool,
-.shell__clear {
+.shell__clear,
+.shell__update {
   min-height: 2.75rem;
   padding: 0 0.75rem;
   border: 0;
@@ -86,6 +87,10 @@
     outline: 0.125rem solid var(--focus);
     outline-offset: 0.125rem;
   }
+}
+
+.shell__update {
+  color: var(--accent-strong);
 }
 
 .shell__tool--on {

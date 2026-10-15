@@ -23,6 +23,11 @@ func NewHandler(options Options) http.Handler {
 		requester: options.Changes,
 		logger:    logger,
 	}))
+	mux.Handle(ChangePlanRoute, withPassword(options.Password, &planHandler{
+		planner: options.Planner,
+		enabled: options.Changes != nil,
+		logger:  logger,
+	}))
 	mux.Handle(ChangeStatusRoute, withPassword(options.Password, &changeStatusHandler{
 		requester: options.Changes,
 		logger:    logger,
