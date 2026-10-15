@@ -1,0 +1,40 @@
+<div class="shell">
+  <header class="shell__header">
+    <h1 class="shell__title">Советчик</h1>
+    <span class="shell__version">v{{ version }}</span>
+  </header>
+
+  <main
+    #log
+    class="shell__log"
+    role="log"
+    aria-live="polite"
+    aria-label="Диалог"
+    (scroll)="onLogScrolled()"
+  >
+    <div class="shell__messages">
+      @for (message of chat.messages(); track message.id) {
+        <app-message-bubble
+          [message]="message"
+          [canSpeak]="speech.synthesisSupported"
+          [speaking]="speech.speakingId() === message.id"
+          (speakRequested)="speech.speak(message.id, message.text)"
+          (stopRequested)="speech.stopSpeaking()"
+          (deleteRequested)="onDeleteRequested(message.id)"
+        />
+      }
+    </div>
+  </main>
+
+  <footer class="shell__dock">
+    @if (speech.interimText(); as interim) {
+      <p class="shell__interim">{{ interim }}</p>
+    }
+    <app-composer [busy]="chat.busy()" [(expanded)]="composing" (submitted)="onSubmitted($event)" />
+    <app-mic-button
+      [state]="speech.recognitionState()"
+      [compact]="composing()"
+      (pressed)="onMicPressed()"
+    />
+  </footer>
+</div>

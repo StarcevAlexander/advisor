@@ -1,0 +1,87 @@
+:root {
+  color-scheme: dark;
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-assistant: #1c232d;
+  --surface-user: #1f3a5c;
+  --chip: #263140;
+  --chip-hover: #324156;
+  --border: #2a3441;
+  --text: #e8edf4;
+  --text-muted: #9aa6b6;
+  --accent: #2f9e8f;
+  --accent-strong: #3fc2b0;
+  --accent-glow: rgb(63 194 176 / 35%);
+  --on-accent: #04110f;
+  --danger: #e5484d;
+  --danger-strong: #ff6369;
+  --danger-glow: rgb(229 72 77 / 40%);
+  --danger-text: #ff8a8e;
+  --focus: #8ab4ff;
+  --ease-out: cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+
+@property --glow-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(40rem 40rem at 18% 12%, rgb(63 194 176 / 16%), transparent 60%),
+    radial-gradient(36rem 36rem at 88% 78%, rgb(79 110 255 / 16%), transparent 60%);
+  animation: aurora 26s ease-in-out infinite alternate;
+}
+
+@keyframes aurora {
+  to {
+    transform: translate3d(4%, 3%, 0) rotate(6deg) scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+button,
+label {
+  touch-action: manipulation;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  font-size: 1rem;
+  -webkit-font-smoothing: antialiased;
+}
