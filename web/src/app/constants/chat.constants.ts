@@ -36,3 +36,8 @@ export const EDIT_MODE_HINT =
 
 export const WELCOME_TEXT =
   'Я ваш советчик. Напишите, что нужно, и при необходимости приложите файл.';
+
+export const VOICE_INPUT_LABELS = {
+  start: 'Голосовой ввод',
+  stop: 'Остановить запись',
+} as const;

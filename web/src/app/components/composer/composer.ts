@@ -5,9 +5,11 @@ import {
   COMPOSER_PLACEHOLDERS,
   MAX_ATTACHMENT_SIZE_BYTES,
   MAX_ATTACHMENTS,
+  VOICE_INPUT_LABELS,
 } from '../../constants';
 import { Attachment, ComposerPayload } from '../../models';
 import { ImageCompressor } from '../../services/image-compressor';
+import { Speech } from '../../services/speech';
 
 @Component({
   imports: [FormField],
@@ -21,6 +23,9 @@ export class Composer {
   readonly expanded = model(false);
   readonly submitted = output<ComposerPayload>();
 
+  protected readonly speech = inject(Speech);
+  protected readonly voiceLabels = VOICE_INPUT_LABELS;
+
   private readonly imageCompressor = inject(ImageCompressor);
 
   protected readonly acceptedTypes = ACCEPTED_FILE_TYPES;
@@ -28,11 +33,10 @@ export class Composer {
   protected readonly composerForm = form(this.model);
   protected readonly attachments = signal<Attachment[]>([]);
   protected readonly error = signal<string | undefined>(undefined);
-  protected readonly canSend = computed(
-    () =>
-      !this.busy() &&
-      (this.composerForm.text().value().trim().length > 0 || this.attachments().length > 0),
+  protected readonly hasContent = computed(
+    () => this.composerForm.text().value().trim().length > 0 || this.attachments().length > 0,
   );
+  protected readonly canSend = computed(() => !this.busy() && this.hasContent());
 
   protected async onFilesSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
@@ -72,6 +76,21 @@ export class Composer {
     this.error.set(undefined);
   }
 
+  protected toggleVoice(): void {
+    if (this.speech.listening()) {
+      this.speech.stopListening();
+      return;
+    }
+    this.speech.startListening((text) => {
+      if (!text) {
+        return;
+      }
+      this.model.update((current) => ({
+        text: current.text.trim() ? `${current.text.trim()} ${text}` : text,
+      }));
+    });
+  }
+
   protected onFocusIn(): void {
     this.expanded.set(true);
   }
@@ -81,7 +100,7 @@ export class Composer {
     if (next && (event.currentTarget as HTMLElement).contains(next)) {
       return;
     }
-    if (this.composerForm.text().value().trim().length === 0 && this.attachments().length === 0) {
+    if (!this.hasContent()) {
       this.expanded.set(false);
     }
   }

@@ -17,22 +17,45 @@
 }
 
 .bubble {
+  --bubble-bg: var(--surface-assistant);
+
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.375rem;
   max-width: min(85%, 34rem);
   margin-right: auto;
-  padding: 0.75rem 1rem;
-  border-radius: 1.25rem 1.25rem 1.25rem 0.375rem;
-  background: var(--surface-assistant);
+  margin-left: 0.5rem;
+  padding: 0.5rem 0.75rem 0.375rem;
+  border-radius: 1rem 1rem 1rem 0.25rem;
+  background: var(--bubble-bg);
+  box-shadow: 0 0.0625rem 0.0625rem rgb(16 35 47 / 15%);
   color: var(--text);
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -0.5rem;
+    width: 0.5rem;
+    height: 0.75rem;
+    background: var(--bubble-bg);
+    clip-path: polygon(100% 0, 100% 100%, 0 100%, 100% 55%);
+  }
 }
 
 .bubble--user {
-  margin-right: 0;
+  --bubble-bg: var(--surface-user);
+
+  margin-right: 0.5rem;
   margin-left: auto;
-  border-radius: 1.25rem 1.25rem 0.375rem 1.25rem;
-  background: var(--surface-user);
+  border-radius: 1rem 1rem 0.25rem 1rem;
+
+  &::after {
+    right: -0.5rem;
+    left: auto;
+    clip-path: polygon(0 0, 0 100%, 100% 100%, 0 55%);
+  }
 }
 
 .bubble__badge {
@@ -106,9 +129,9 @@
 .bubble__meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  min-height: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .bubble__actions {
@@ -123,7 +146,8 @@
 }
 
 .bubble__time {
-  font-size: 0.75rem;
+  order: 2;
+  font-size: 0.6875rem;
   color: var(--text-muted);
 }
 
