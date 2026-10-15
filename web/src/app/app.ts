@@ -75,12 +75,18 @@ export class App {
       const viewport = window.visualViewport;
       if (viewport) {
         const syncViewport = () => {
-          document.documentElement.style.setProperty('--app-height', `${viewport.height}px`);
+          const style = document.documentElement.style;
+          style.setProperty('--app-height', `${viewport.height}px`);
+          style.setProperty('--app-top', `${viewport.offsetTop}px`);
           window.scrollTo(0, 0);
         };
         syncViewport();
         viewport.addEventListener('resize', syncViewport);
-        this.destroyRef.onDestroy(() => viewport.removeEventListener('resize', syncViewport));
+        viewport.addEventListener('scroll', syncViewport);
+        this.destroyRef.onDestroy(() => {
+          viewport.removeEventListener('resize', syncViewport);
+          viewport.removeEventListener('scroll', syncViewport);
+        });
       }
 
       const observer = new ResizeObserver(() => {
