@@ -18,8 +18,8 @@
   }
 
   @if (message().pending) {
-    <p class="bubble__dots" role="status" aria-label="Советчик думает">
-      <span></span><span></span><span></span>
+    <p class="bubble__spinner" role="status" aria-label="Советчик думает">
+      <span class="bubble__spinner-ring"></span>
     </p>
   } @else if (message().text) {
     <p class="bubble__text">{{ message().text }}</p>
