@@ -12,6 +12,12 @@ export const SPEAK_REPLIES_STORAGE_KEY = 'advisor.speak-replies';
 
 export const SPEAK_REPLIES_LABEL = 'Озвучивать ответы';
 
+export const SETTINGS_TITLE = 'Настройки';
+
+export const SETTINGS_OPEN_LABEL = 'Открыть настройки';
+
+export const SETTINGS_CLOSE_LABEL = 'Закрыть настройки';
+
 export const MAX_STORED_MESSAGES = 100;
 
 export const CLEAR_CONFIRM_TIMEOUT_MS = 3000;
