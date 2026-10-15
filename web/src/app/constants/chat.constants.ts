@@ -24,7 +24,7 @@ export const MAX_STORED_MESSAGES = 100;
 
 export const MAX_HISTORY_TURNS = 20;
 
-export const HISTORY_TRIMMED_NOTE = 'Более ранние сообщения в запрос к советчику не включены';
+export const HISTORY_CONTEXT_LABEL = 'В беседе учитывается сообщений';
 
 export const CLEAR_CONFIRM_TIMEOUT_MS = 3000;
 

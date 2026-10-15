@@ -13,7 +13,6 @@ import {
   CHANGE_RUN_LINK_LABEL,
   CHANGE_STATE_TEXT,
   CHANGE_TRACKED_STATES,
-  HISTORY_TRIMMED_NOTE,
   MAX_HISTORY_TURNS,
   WELCOME_TEXT,
 } from '../constants';
@@ -45,11 +44,10 @@ export class Chat {
   readonly busy = signal(false);
   readonly mode = computed<ChatMode>(() => (this.settings.developerMode() ? 'edit' : 'ask'));
   readonly lastReply = signal<ChatReply | undefined>(undefined);
-  readonly trimmedNote = computed(() =>
-    this.contextTurns(this.messages()).length > MAX_HISTORY_TURNS
-      ? HISTORY_TRIMMED_NOTE
-      : undefined,
+  readonly contextCount = computed(() =>
+    Math.min(this.contextTurns(this.messages()).length, MAX_HISTORY_TURNS),
   );
+  readonly contextTotal = computed(() => this.contextTurns(this.messages()).length);
 
   constructor() {
     effect(() => this.history.save(this.messages()));
@@ -366,8 +364,7 @@ export class Chat {
   private contextTurns(messages: ChatMessage[]): ApiTurn[] {
     return messages
       .filter(
-        (message) =>
-          !message.pending && !message.failed && !message.edit && message.text.trim().length > 0,
+        (message) => !message.pending && !message.failed && message.text.trim().length > 0,
       )
       .map((message) => ({ role: message.role, text: message.text }));
   }
