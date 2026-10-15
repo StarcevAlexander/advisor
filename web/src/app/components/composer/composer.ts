@@ -2,7 +2,6 @@ import { Component, computed, inject, input, model, output, signal } from '@angu
 import { form, FormField } from '@angular/forms/signals';
 import {
   ACCEPTED_FILE_TYPES,
-  COMPOSER_PLACEHOLDERS,
   MAX_ATTACHMENT_SIZE_BYTES,
   MAX_ATTACHMENTS,
   VOICE_INPUT_LABELS,
@@ -19,7 +18,6 @@ import { Speech } from '../../services/speech';
 })
 export class Composer {
   readonly busy = input(false);
-  readonly placeholder = input<string>(COMPOSER_PLACEHOLDERS.ask);
   readonly expanded = model(false);
   readonly submitted = output<ComposerPayload>();
 

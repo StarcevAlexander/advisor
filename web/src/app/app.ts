@@ -16,7 +16,6 @@ import { MessageBubble } from './components/message-bubble/message-bubble';
 import { SettingsPanel } from './components/settings-panel/settings-panel';
 import {
   CLEAR_CONFIRM_TIMEOUT_MS,
-  COMPOSER_PLACEHOLDERS,
   SETTINGS_OPEN_LABEL,
   UPDATE_BUTTON_LABEL,
 } from './constants';
@@ -43,7 +42,6 @@ export class App {
   protected readonly settingsOpenLabel = SETTINGS_OPEN_LABEL;
   protected readonly updateLabel = UPDATE_BUTTON_LABEL;
   protected readonly version = APP_VERSION;
-  protected readonly placeholders = COMPOSER_PLACEHOLDERS;
   protected readonly composing = signal(false);
   protected readonly confirmingClear = signal(false);
   protected readonly settingsOpen = signal(false);
