@@ -38,7 +38,7 @@
   </header>
 
   <main #log class="shell__log" (scroll)="onLogScrolled()">
-    <div class="shell__messages" role="log" aria-live="polite" aria-label="Диалог">
+    <div #messages class="shell__messages" role="log" aria-live="polite" aria-label="Диалог">
       @for (message of chat.messages(); track message.id) {
         <app-message-bubble
           [message]="message"
