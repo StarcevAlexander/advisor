@@ -39,6 +39,9 @@
 
   <main #log class="shell__log" (scroll)="onLogScrolled()">
     <div #messages class="shell__messages" role="log" aria-live="polite" aria-label="Диалог">
+      @if (chat.trimmedNote(); as note) {
+        <p class="shell__trim-note">{{ note }}</p>
+      }
       @for (message of chat.messages(); track message.id) {
         <app-message-bubble
           [message]="message"
