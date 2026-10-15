@@ -57,10 +57,30 @@
       (keydown.escape)="onEscape($event)"
     ></textarea>
 
-    <button type="submit" class="composer__send" aria-label="Отправить" [disabled]="!canSend()">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3.4 20.4 21 12 3.4 3.6 3.3 10l12 2-12 2 .1 6.4Z" />
-      </svg>
-    </button>
+    @if (hasContent()) {
+      <button type="submit" class="composer__action" aria-label="Отправить" [disabled]="!canSend()">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 20a1 1 0 0 1-1-1V7.4l-4.3 4.3a1 1 0 0 1-1.4-1.4l6-6a1 1 0 0 1 1.4 0l6 6a1 1 0 0 1-1.4 1.4L13 7.4V19a1 1 0 0 1-1 1Z"
+          />
+        </svg>
+      </button>
+    } @else {
+      <button
+        type="button"
+        class="composer__action"
+        [class.composer__action--live]="speech.listening()"
+        [attr.aria-label]="speech.listening() ? voiceLabels.stop : voiceLabels.start"
+        [attr.aria-pressed]="speech.listening()"
+        [disabled]="!speech.recognitionSupported"
+        (click)="toggleVoice()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 15a4 4 0 0 0 4-4V6a4 4 0 0 0-8 0v5a4 4 0 0 0 4 4Zm6-4a1 1 0 1 1 2 0 8 8 0 0 1-7 7.9V21a1 1 0 1 1-2 0v-2.1A8 8 0 0 1 4 11a1 1 0 1 1 2 0 6 6 0 0 0 12 0Z"
+          />
+        </svg>
+      </button>
+    }
   </div>
 </form>

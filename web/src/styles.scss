@@ -1,54 +1,24 @@
 :root {
-  color-scheme: dark;
-  --bg: #0d1117;
-  --surface: #161b22;
-  --surface-assistant: #1c232d;
-  --surface-user: #1f3a5c;
-  --chip: #263140;
-  --chip-hover: #324156;
-  --border: #2a3441;
-  --text: #e8edf4;
-  --text-muted: #9aa6b6;
-  --accent: #2f9e8f;
-  --accent-strong: #3fc2b0;
-  --accent-glow: rgb(63 194 176 / 35%);
-  --on-accent: #04110f;
-  --danger: #e5484d;
-  --danger-strong: #ff6369;
-  --danger-glow: rgb(229 72 77 / 40%);
-  --danger-text: #ff8a8e;
-  --focus: #8ab4ff;
+  color-scheme: light;
+  --bg: #dde7ee;
+  --surface: #ffffff;
+  --surface-assistant: #ffffff;
+  --surface-user: #e1ffc7;
+  --chip: #eef2f5;
+  --chip-hover: #dfe6ec;
+  --border: #d3dce4;
+  --text: #0f1419;
+  --text-muted: #55626f;
+  --accent: #2878c8;
+  --accent-strong: #1a62ad;
+  --accent-glow: rgb(40 120 200 / 25%);
+  --on-accent: #ffffff;
+  --danger: #d03238;
+  --danger-strong: #b4262c;
+  --danger-glow: rgb(208 50 56 / 30%);
+  --danger-text: #b4262c;
+  --focus: #1a62ad;
   --ease-out: cubic-bezier(0.2, 0.9, 0.25, 1);
-}
-
-@property --glow-angle {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-
-body::before {
-  content: '';
-  position: fixed;
-  inset: -20%;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(40rem 40rem at 18% 12%, rgb(63 194 176 / 16%), transparent 60%),
-    radial-gradient(36rem 36rem at 88% 78%, rgb(79 110 255 / 16%), transparent 60%);
-  animation: aurora 26s ease-in-out infinite alternate;
-}
-
-@keyframes aurora {
-  to {
-    transform: translate3d(4%, 3%, 0) rotate(6deg) scale(1.08);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  body::before {
-    animation: none;
-  }
 }
 
 *,
@@ -72,7 +42,7 @@ label {
 }
 
 body {
-  background: var(--bg);
+  background: linear-gradient(160deg, #e3ecf2 0%, #d6e3ea 55%, #dfe9e3 100%) fixed;
   color: var(--text);
   font-family:
     system-ui,
