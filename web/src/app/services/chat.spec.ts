@@ -304,7 +304,7 @@ describe('Chat', () => {
       expect(reply.plan?.steps.length).toBe(2);
     });
 
-    it('keeps change requests out of the conversation history', async () => {
+    it('includes edit mode messages in the conversation history', async () => {
       const id = await proposeIdea();
       chat.confirmChange(id);
       http.expectOne(changeUrl).flush({ message: 'Заявка принята', url: 'u' });
@@ -315,8 +315,8 @@ describe('Chat', () => {
       const body = http.expectOne(chatUrl).request.body as FormData;
       const history = JSON.parse(body.get('history') as string) as { text: string }[];
 
-      expect(history.map((turn) => turn.text)).not.toContain('Сделай кнопку красной');
-      expect(history.map((turn) => turn.text)).not.toContain('Сделаю кнопку красной');
+      expect(history.map((turn) => turn.text)).toContain('Сделай кнопку красной');
+      expect(history.map((turn) => turn.text)).toContain('Сделаю кнопку красной');
     });
 
     it('refuses attachments in edit mode without calling the server', async () => {
