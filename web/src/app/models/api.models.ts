@@ -9,6 +9,11 @@ export interface ApiReply {
   reply: string;
 }
 
+export interface ChangeReply {
+  message: string;
+  url: string;
+}
+
 export interface ApiErrorBody {
   error?: string;
 }

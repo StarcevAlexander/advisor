@@ -12,3 +12,5 @@ services:
         sync: false
       - key: ACCESS_PASSWORD
         sync: false
+      - key: GITHUB_TOKEN
+        sync: false

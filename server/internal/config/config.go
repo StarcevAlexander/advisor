@@ -15,6 +15,9 @@ func Load() (Config, error) {
 		AccessPassword: os.Getenv(EnvAccessPassword),
 		AllowedOrigins: parseList(os.Getenv(EnvAllowedOrigins), DefaultAllowedOrigins),
 		Model:          valueOr(os.Getenv(EnvModel), DefaultModel),
+		GitHubToken:    strings.TrimSpace(os.Getenv(EnvGitHubToken)),
+		GitHubRepo:     strings.TrimSpace(os.Getenv(EnvGitHubRepo)),
+		GitHubBranch:   strings.TrimSpace(os.Getenv(EnvGitHubBranch)),
 	}
 
 	var problems []error

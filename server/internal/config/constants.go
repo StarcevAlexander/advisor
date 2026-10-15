@@ -6,6 +6,9 @@ const (
 	EnvAccessPassword = "ACCESS_PASSWORD"
 	EnvAllowedOrigins = "ALLOWED_ORIGINS"
 	EnvModel          = "ADVISOR_MODEL"
+	EnvGitHubToken    = "GITHUB_TOKEN"
+	EnvGitHubRepo     = "GITHUB_REPO"
+	EnvGitHubBranch   = "GITHUB_BRANCH"
 	DefaultPort       = "8080"
 	DefaultModel      = "claude-sonnet-5-5"
 	MinPasswordLength = 8

@@ -19,5 +19,9 @@ func NewHandler(options Options) http.Handler {
 		responder: options.Responder,
 		logger:    logger,
 	}))
+	mux.Handle(ChangeRoute, withPassword(options.Password, &changeHandler{
+		requester: options.Changes,
+		logger:    logger,
+	}))
 	return withCORS(options.AllowedOrigins, withLogging(logger, mux))
 }

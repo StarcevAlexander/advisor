@@ -17,6 +17,19 @@ export interface ChatMessage {
   createdAt: Date;
   pending?: boolean;
   failed?: boolean;
+  edit?: boolean;
+  link?: string;
+}
+
+export type ChatMode = 'ask' | 'edit';
+
+export interface StoredMessage {
+  id: string;
+  role: MessageRole;
+  text: string;
+  createdAt: string;
+  edit?: boolean;
+  link?: string;
 }
 
 export interface ComposerPayload {

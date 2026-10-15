@@ -13,6 +13,12 @@
     </ul>
   }
 
+  @if (message().link; as link) {
+    <a class="bubble__link" [href]="link" target="_blank" rel="noopener noreferrer">
+      Открыть заявки на GitHub
+    </a>
+  }
+
   @if (message().pending) {
     <p class="bubble__dots" role="status" aria-label="Советчик думает">
       <span></span><span></span><span></span>

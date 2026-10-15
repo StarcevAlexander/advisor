@@ -13,6 +13,7 @@ import { AccessGate } from './components/access-gate/access-gate';
 import { Composer } from './components/composer/composer';
 import { MessageBubble } from './components/message-bubble/message-bubble';
 import { MicButton } from './components/mic-button/mic-button';
+import { CLEAR_CONFIRM_TIMEOUT_MS, COMPOSER_PLACEHOLDERS, EDIT_MODE_HINT } from './constants';
 import { ComposerPayload } from './models';
 import { Access } from './services/access';
 import { AppUpdate } from './services/app-update';
@@ -32,7 +33,10 @@ export class App {
   protected readonly speech = inject(Speech);
   private readonly appUpdate = inject(AppUpdate);
   protected readonly version = APP_VERSION;
+  protected readonly placeholders = COMPOSER_PLACEHOLDERS;
+  protected readonly editHint = EDIT_MODE_HINT;
   protected readonly composing = signal(false);
+  protected readonly confirmingClear = signal(false);
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly log = viewChild.required<ElementRef<HTMLElement>>('log');
@@ -89,6 +93,17 @@ export class App {
     }
     this.speech.resetRecognitionError();
     this.speech.listen((text) => this.chat.send({ text, attachments: [] }));
+  }
+
+  protected onClearClicked(): void {
+    if (!this.confirmingClear()) {
+      this.confirmingClear.set(true);
+      setTimeout(() => this.confirmingClear.set(false), CLEAR_CONFIRM_TIMEOUT_MS);
+      return;
+    }
+    this.speech.stopSpeaking();
+    this.chat.clear();
+    this.confirmingClear.set(false);
   }
 
   protected onDeleteRequested(id: string): void {

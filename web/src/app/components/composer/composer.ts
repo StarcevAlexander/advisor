@@ -1,6 +1,11 @@
 import { Component, computed, inject, input, model, output, signal } from '@angular/core';
 import { form, FormField } from '@angular/forms/signals';
-import { ACCEPTED_FILE_TYPES, MAX_ATTACHMENT_SIZE_BYTES, MAX_ATTACHMENTS } from '../../constants';
+import {
+  ACCEPTED_FILE_TYPES,
+  COMPOSER_PLACEHOLDERS,
+  MAX_ATTACHMENT_SIZE_BYTES,
+  MAX_ATTACHMENTS,
+} from '../../constants';
 import { Attachment, ComposerPayload } from '../../models';
 import { ImageCompressor } from '../../services/image-compressor';
 
@@ -12,6 +17,7 @@ import { ImageCompressor } from '../../services/image-compressor';
 })
 export class Composer {
   readonly busy = input(false);
+  readonly placeholder = input<string>(COMPOSER_PLACEHOLDERS.ask);
   readonly expanded = model(false);
   readonly submitted = output<ComposerPayload>();
 

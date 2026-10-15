@@ -6,4 +6,7 @@ type Config struct {
 	AccessPassword string
 	AllowedOrigins []string
 	Model          string
+	GitHubToken    string
+	GitHubRepo     string
+	GitHubBranch   string
 }

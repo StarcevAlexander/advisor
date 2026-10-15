@@ -1,0 +1,129 @@
+name: Claude change request
+
+on:
+  workflow_dispatch:
+    inputs:
+      request:
+        description: What to change in the app (Russian text from the chat)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: claude-change
+  cancel-in-progress: false
+
+jobs:
+  change:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      REQUEST: ${{ inputs.request }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install app dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Let Claude edit the app
+        working-directory: web
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cat > "$RUNNER_TEMP/prompt.txt" <<'PROMPT'
+          You are changing a small Angular 22 PWA (a personal voice advisor). Your working directory is the app folder web/.
+          Make exactly the change described in the request below and nothing else.
+          Rules:
+          - Edit only files under src/ and public/. Never touch package.json, lock files, angular.json, scripts/ or anything outside web/.
+          - Follow CLAUDE.md in this folder and match the style of neighbouring code: signals, inject(), @if/@for, separate .html and .scss files, types in models/, constants in constants/.
+          - Do not write code comments.
+          - Keep all user-visible text in Russian.
+          - After editing run "npm test -- --watch=false" and "npm run build", and fix any failure you caused.
+          - If the request is unclear, unsafe, or would need changes outside these rules, change nothing and explain why.
+          - Finish with a short plain summary in Russian of what you changed, without code.
+          PROMPT
+          printf '\nRequest (in Russian):\n%s\n' "$REQUEST" >> "$RUNNER_TEMP/prompt.txt"
+          claude -p "$(cat "$RUNNER_TEMP/prompt.txt")" \
+            --model claude-sonnet-5-5 \
+            --max-turns 60 \
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm test:*),Bash(npm run build:*)" \
+            | tee "$RUNNER_TEMP/claude-summary.txt"
+
+      - name: Run tests and build independently
+        id: check
+        working-directory: web
+        continue-on-error: true
+        run: |
+          npm test -- --watch=false
+          npm run build
+
+      - name: Enforce allowed paths
+        id: diff
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Claude made no changes:"
+            cat "$RUNNER_TEMP/claude-summary.txt"
+            exit 0
+          fi
+          forbidden=$(git diff --cached --name-only | grep -v -E '^web/(src|public)/' || true)
+          if [ -n "$forbidden" ]; then
+            echo "::error::Claude touched files outside web/src and web/public:"
+            echo "$forbidden"
+            exit 1
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open the pull request
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          CHECK_OUTCOME: ${{ steps.check.outcome }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          branch="claude/change-${GITHUB_RUN_ID}"
+          title_text=$(printf '%s' "$REQUEST" | tr '\n' ' ' | cut -c1-60)
+          git config user.name "advisor-bot"
+          git config user.email "advisor-bot@users.noreply.github.com"
+          git checkout -b "$branch"
+          git commit -m "feat(app): ${title_text}"
+          git push origin "$branch"
+          {
+            echo "Запрос из чата:"
+            echo
+            printf '> %s\n' "$REQUEST"
+            echo
+            echo "Что сделал Claude:"
+            echo
+            cat "$RUNNER_TEMP/claude-summary.txt"
+            echo
+            if [ "$CHECK_OUTCOME" = "success" ]; then
+              echo "Проверки: тесты и сборка прошли."
+            else
+              echo "ВНИМАНИЕ: тесты или сборка не прошли, принимать без правок нельзя."
+            fi
+          } > "$RUNNER_TEMP/pr-body.md"
+          draft=""
+          if [ "$CHECK_OUTCOME" != "success" ]; then
+            draft="--draft"
+          fi
+          gh pr create \
+            --base "$BASE_BRANCH" \
+            --head "$branch" \
+            --title "feat(app): ${title_text}" \
+            --body-file "$RUNNER_TEMP/pr-body.md" \
+            $draft

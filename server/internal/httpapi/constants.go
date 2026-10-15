@@ -10,6 +10,13 @@ const (
 const HealthPath = "/healthz"
 
 const (
+	ChangeRoute                 = "POST /api/change"
+	MaxChangeBodyBytes    int64 = 16 << 10
+	MaxChangeRequestRunes       = 2000
+	ChangeAcceptedMessage       = "Заявка принята. Claude подготовит изменение за несколько минут. Когда оно появится в списке, проверьте и примите его."
+)
+
+const (
 	FieldText    = "text"
 	FieldHistory = "history"
 	FieldFiles   = "files"
@@ -35,4 +42,7 @@ const (
 	MsgTooLarge        = "Файлы слишком большие"
 	MsgUnsupportedFile = "Этот тип файла не поддерживается"
 	MsgUpstreamFailed  = "Советчик временно недоступен, попробуйте ещё раз"
+	MsgChangesDisabled = "Правка приложения не настроена на сервере"
+	MsgChangeTooLong   = "Описание изменения слишком длинное"
+	MsgChangeFailed    = "Не удалось отправить заявку на изменение, попробуйте ещё раз"
 )

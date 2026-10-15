@@ -4,6 +4,8 @@ export const API_PRODUCTION_URL = 'https://advisor-server.onrender.com';
 
 export const API_CHAT_PATH = '/api/chat';
 
+export const API_CHANGE_PATH = '/api/change';
+
 export const HTTP_UNAUTHORIZED = 401;
 
 export const HTTP_OFFLINE = 0;
@@ -15,4 +17,5 @@ export const API_MESSAGES = {
   unauthorized: 'Неверный пароль. Введите его заново',
   offline: 'Нет связи с сервером. Проверьте интернет и повторите',
   failed: 'Советчик сейчас недоступен. Попробуйте ещё раз',
+  editNoFiles: 'В режиме правки файлы не принимаются. Опишите изменение словами',
 } as const;

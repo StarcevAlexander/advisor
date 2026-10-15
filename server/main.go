@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"advisor/server/internal/changes"
 	"advisor/server/internal/chat"
 	"advisor/server/internal/config"
 	"advisor/server/internal/httpapi"
@@ -40,8 +41,18 @@ func run() error {
 		return fmt.Errorf("config: %w", err)
 	}
 
+	var changeRequester changes.Requester
+	if cfg.GitHubToken != "" {
+		changeRequester = changes.NewGitHub(changes.GitHubConfig{
+			Token:  cfg.GitHubToken,
+			Repo:   cfg.GitHubRepo,
+			Branch: cfg.GitHubBranch,
+		})
+	}
+
 	handler := httpapi.NewHandler(httpapi.Options{
 		Responder:      chat.NewClaude(cfg.APIKey, cfg.Model),
+		Changes:        changeRequester,
 		Password:       cfg.AccessPassword,
 		AllowedOrigins: cfg.AllowedOrigins,
 		Logger:         slog.Default(),

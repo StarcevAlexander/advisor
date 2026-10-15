@@ -35,6 +35,19 @@
   background: var(--surface-user);
 }
 
+.bubble__link {
+  align-self: flex-start;
+  padding: 0.25rem 0;
+  color: var(--accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+
+  &:focus-visible {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+  }
+}
+
 .bubble--failed {
   border: 0.0625rem solid var(--danger);
 
