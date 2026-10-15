@@ -2,6 +2,16 @@
   <header class="shell__header">
     <h1 class="shell__title">Советчик</h1>
     <div class="shell__tools">
+      @if (speech.synthesisSupported) {
+        <label class="shell__toggle">
+          <input
+            type="checkbox"
+            [checked]="settings.speakReplies()"
+            (change)="onSpeakRepliesChanged($event)"
+          />
+          {{ speakRepliesLabel }}
+        </label>
+      }
       <button
         type="button"
         class="shell__tool"
@@ -51,9 +61,6 @@
 
   <footer class="shell__dock">
     @if (access.granted()) {
-      @if (speech.interimText(); as interim) {
-        <p class="shell__interim">{{ interim }}</p>
-      }
       @if (chat.mode() === 'edit') {
         <p class="shell__hint" role="status">{{ editHint }}</p>
       }
@@ -62,11 +69,6 @@
         [placeholder]="placeholders[chat.mode()]"
         [(expanded)]="composing"
         (submitted)="onSubmitted($event)"
-      />
-      <app-mic-button
-        [state]="speech.recognitionState()"
-        [compact]="composing()"
-        (pressed)="onMicPressed()"
       />
     } @else {
       <app-access-gate />
