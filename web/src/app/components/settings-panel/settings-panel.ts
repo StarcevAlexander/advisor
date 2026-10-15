@@ -1,5 +1,10 @@
 import { Component, ElementRef, effect, inject, model, viewChild } from '@angular/core';
-import { SETTINGS_CLOSE_LABEL, SETTINGS_TITLE, SPEAK_REPLIES_LABEL } from '../../constants';
+import {
+  DEVELOPER_MODE_LABEL,
+  SETTINGS_CLOSE_LABEL,
+  SETTINGS_TITLE,
+  SPEAK_REPLIES_LABEL,
+} from '../../constants';
 import { Settings } from '../../services/settings';
 import { Speech } from '../../services/speech';
 
@@ -14,6 +19,7 @@ export class SettingsPanel {
   protected readonly title = SETTINGS_TITLE;
   protected readonly closeLabel = SETTINGS_CLOSE_LABEL;
   protected readonly speakRepliesLabel = SPEAK_REPLIES_LABEL;
+  protected readonly developerModeLabel = DEVELOPER_MODE_LABEL;
 
   readonly open = model(false);
 
@@ -36,6 +42,10 @@ export class SettingsPanel {
     if (!enabled) {
       this.speech.stopSpeaking();
     }
+  }
+
+  protected onDeveloperModeChanged(event: Event): void {
+    this.settings.setDeveloperMode((event.target as HTMLInputElement).checked);
   }
 
   protected onDialogClicked(event: MouseEvent): void {

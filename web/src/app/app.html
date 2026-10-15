@@ -4,16 +4,6 @@
     <div class="shell__tools">
       <button
         type="button"
-        class="shell__tool"
-        [class.shell__tool--on]="chat.mode() === 'edit'"
-        [attr.aria-pressed]="chat.mode() === 'edit'"
-        [disabled]="chat.busy() || !access.granted()"
-        (click)="chat.toggleEditMode()"
-      >
-        Править
-      </button>
-      <button
-        type="button"
         class="shell__clear"
         [class.shell__clear--confirm]="confirmingClear()"
         [disabled]="chat.busy() || chat.messages().length < 2"

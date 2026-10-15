@@ -30,5 +30,13 @@
         {{ speakRepliesLabel }}
       </label>
     }
+    <label class="panel__toggle">
+      <input
+        type="checkbox"
+        [checked]="settings.developerMode()"
+        (change)="onDeveloperModeChanged($event)"
+      />
+      {{ developerModeLabel }}
+    </label>
   </div>
 </dialog>

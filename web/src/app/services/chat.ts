@@ -1,4 +1,4 @@
-import { Service, effect, inject, signal } from '@angular/core';
+import { Service, computed, effect, inject, signal } from '@angular/core';
 import {
   API_MESSAGES,
   CHANGE_ACTIVE_LIMIT_MS,
@@ -30,16 +30,18 @@ import {
 import { Access } from './access';
 import { ChatApi } from './chat-api';
 import { ChatHistory } from './chat-history';
+import { Settings } from './settings';
 
 @Service()
 export class Chat {
   private readonly api = inject(ChatApi);
   private readonly access = inject(Access);
   private readonly history = inject(ChatHistory);
+  private readonly settings = inject(Settings);
 
   readonly messages = signal<ChatMessage[]>(this.restoreMessages());
   readonly busy = signal(false);
-  readonly mode = signal<ChatMode>('ask');
+  readonly mode = computed<ChatMode>(() => (this.settings.developerMode() ? 'edit' : 'ask'));
   readonly lastReply = signal<ChatReply | undefined>(undefined);
 
   constructor() {
@@ -47,13 +49,6 @@ export class Chat {
     this.messages()
       .filter((message) => this.isTracked(message))
       .forEach((message) => this.scheduleChangePoll(message.id, CHANGE_FIRST_POLL_DELAY_MS));
-  }
-
-  toggleEditMode(): void {
-    if (this.busy()) {
-      return;
-    }
-    this.mode.update((mode) => (mode === 'edit' ? 'ask' : 'edit'));
   }
 
   clear(): void {
@@ -75,7 +70,6 @@ export class Chat {
     const pendingId = this.appendExchange(text, payload.attachments, editing);
 
     if (editing) {
-      this.mode.set('ask');
       void this.requestPlan(pendingId, text, payload.attachments.length);
       return;
     }

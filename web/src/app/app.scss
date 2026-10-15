@@ -47,7 +47,6 @@
   line-height: 1.4;
 }
 
-.shell__tool,
 .shell__clear,
 .shell__update {
   min-height: 2.75rem;
@@ -78,16 +77,6 @@
 
 .shell__update {
   color: var(--accent-strong);
-}
-
-.shell__tool--on {
-  background: var(--accent);
-  color: var(--on-accent);
-
-  &:hover:not(:disabled) {
-    background: var(--accent-strong);
-    color: var(--on-accent);
-  }
 }
 
 .shell__clear--confirm {
