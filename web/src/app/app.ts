@@ -52,6 +52,7 @@ export class App {
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly log = viewChild.required<ElementRef<HTMLElement>>('log');
+  private readonly messagesList = viewChild.required<ElementRef<HTMLElement>>('messages');
   private stickToBottom = true;
 
   constructor() {
@@ -88,6 +89,7 @@ export class App {
         }
       });
       observer.observe(this.log().nativeElement);
+      observer.observe(this.messagesList().nativeElement);
       this.destroyRef.onDestroy(() => observer.disconnect());
     });
   }
