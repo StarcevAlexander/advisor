@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: advisor-server
+    runtime: go
+    rootDir: server
+    buildCommand: go build -o advisor .
+    startCommand: ./advisor
+    healthCheckPath: /healthz
+    plan: free
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ACCESS_PASSWORD
+        sync: false

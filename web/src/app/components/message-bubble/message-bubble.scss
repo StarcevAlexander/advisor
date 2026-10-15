@@ -35,6 +35,14 @@
   background: var(--surface-user);
 }
 
+.bubble--failed {
+  border: 0.0625rem solid var(--danger);
+
+  .bubble__text {
+    color: var(--danger-text);
+  }
+}
+
 .bubble__text {
   margin: 0;
   line-height: 1.5;

@@ -1,6 +1,8 @@
-import { Service, signal } from '@angular/core';
-import { STUB_REPLY_DELAY_MS, WELCOME_TEXT } from '../constants';
-import { ChatMessage, ComposerPayload } from '../models';
+import { Service, inject, signal } from '@angular/core';
+import { WELCOME_TEXT } from '../constants';
+import { ApiTurn, ChatApiError, ChatMessage, ComposerPayload } from '../models';
+import { Access } from './access';
+import { ChatApi } from './chat-api';
 
 @Service()
 export class Chat {
@@ -15,12 +17,16 @@ export class Chat {
   ]);
   readonly busy = signal(false);
 
+  private readonly api = inject(ChatApi);
+  private readonly access = inject(Access);
+
   send(payload: ComposerPayload): void {
     const text = payload.text.trim();
     if (this.busy() || (!text && payload.attachments.length === 0)) {
       return;
     }
 
+    const history = this.buildHistory();
     const pendingId = crypto.randomUUID();
     this.messages.update((messages) => [
       ...messages,
@@ -42,10 +48,7 @@ export class Chat {
     ]);
     this.busy.set(true);
 
-    setTimeout(
-      () => this.resolvePending(pendingId, this.buildStubReply(payload)),
-      STUB_REPLY_DELAY_MS,
-    );
+    void this.requestReply(pendingId, { text, attachments: payload.attachments }, history);
   }
 
   remove(id: string): void {
@@ -61,18 +64,35 @@ export class Chat {
     this.messages.update((messages) => messages.filter((message) => message.id !== id));
   }
 
-  private resolvePending(id: string, text: string): void {
+  private async requestReply(
+    pendingId: string,
+    payload: ComposerPayload,
+    history: ApiTurn[],
+  ): Promise<void> {
+    try {
+      const reply = await this.api.ask(payload, history);
+      this.resolvePending(pendingId, reply, false);
+    } catch (error) {
+      if (error instanceof ChatApiError && error.unauthorized) {
+        this.access.clear();
+      }
+      const message = error instanceof ChatApiError ? error.message : String(error);
+      this.resolvePending(pendingId, message, true);
+    }
+  }
+
+  private buildHistory(): ApiTurn[] {
+    return this.messages()
+      .filter((message) => !message.pending && !message.failed && message.text.trim().length > 0)
+      .map((message) => ({ role: message.role, text: message.text }));
+  }
+
+  private resolvePending(id: string, text: string, failed: boolean): void {
     this.messages.update((messages) =>
       messages.map((message) =>
-        message.id === id ? { ...message, text, pending: false } : message,
+        message.id === id ? { ...message, text, pending: false, failed } : message,
       ),
     );
     this.busy.set(false);
-  }
-
-  private buildStubReply(payload: ComposerPayload): string {
-    const files = payload.attachments.length;
-    const filesNote = files > 0 ? ` Вложений: ${files}.` : '';
-    return `Сервер советчика ещё не подключён, это тестовый ответ. Вы сказали: «${payload.text.trim() || 'без текста'}».${filesNote}`;
   }
 }

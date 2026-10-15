@@ -1,4 +1,4 @@
-<article class="bubble" [class.bubble--user]="fromUser()">
+<article class="bubble" [class.bubble--user]="fromUser()" [class.bubble--failed]="message().failed">
   @if (message().attachments.length > 0) {
     <ul class="bubble__files">
       @for (attachment of message().attachments; track attachment.id) {

@@ -9,22 +9,25 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { AccessGate } from './components/access-gate/access-gate';
 import { Composer } from './components/composer/composer';
 import { MessageBubble } from './components/message-bubble/message-bubble';
 import { MicButton } from './components/mic-button/mic-button';
 import { ComposerPayload } from './models';
+import { Access } from './services/access';
 import { AppUpdate } from './services/app-update';
 import { Chat } from './services/chat';
 import { Speech } from './services/speech';
 import { APP_VERSION } from './version';
 
 @Component({
-  imports: [Composer, MessageBubble, MicButton],
+  imports: [AccessGate, Composer, MessageBubble, MicButton],
   selector: 'app-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',
 })
 export class App {
+  protected readonly access = inject(Access);
   protected readonly chat = inject(Chat);
   protected readonly speech = inject(Speech);
   private readonly appUpdate = inject(AppUpdate);

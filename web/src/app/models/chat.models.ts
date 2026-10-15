@@ -16,6 +16,7 @@ export interface ChatMessage {
   attachments: Attachment[];
   createdAt: Date;
   pending?: boolean;
+  failed?: boolean;
 }
 
 export interface ComposerPayload {

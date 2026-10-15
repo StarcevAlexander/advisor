@@ -20,5 +20,3 @@ export const MIC_LABELS = {
 
 export const WELCOME_TEXT =
   'Я ваш советчик. Нажмите большую кнопку и скажите, что нужно, или напишите текстом и приложите файл.';
-
-export const STUB_REPLY_DELAY_MS = 900;

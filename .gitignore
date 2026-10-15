@@ -4,3 +4,6 @@ server/.env
 node_modules/
 dist/
 .angular/
+server/advisor.exe
+server/advisor
+.idea/

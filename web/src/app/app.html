@@ -27,14 +27,22 @@
   </main>
 
   <footer class="shell__dock">
-    @if (speech.interimText(); as interim) {
-      <p class="shell__interim">{{ interim }}</p>
+    @if (access.granted()) {
+      @if (speech.interimText(); as interim) {
+        <p class="shell__interim">{{ interim }}</p>
+      }
+      <app-composer
+        [busy]="chat.busy()"
+        [(expanded)]="composing"
+        (submitted)="onSubmitted($event)"
+      />
+      <app-mic-button
+        [state]="speech.recognitionState()"
+        [compact]="composing()"
+        (pressed)="onMicPressed()"
+      />
+    } @else {
+      <app-access-gate />
     }
-    <app-composer [busy]="chat.busy()" [(expanded)]="composing" (submitted)="onSubmitted($event)" />
-    <app-mic-button
-      [state]="speech.recognitionState()"
-      [compact]="composing()"
-      (pressed)="onMicPressed()"
-    />
   </footer>
 </div>
