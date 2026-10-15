@@ -4,7 +4,10 @@ import {
   SETTINGS_CLOSE_LABEL,
   SETTINGS_TITLE,
   SPEAK_REPLIES_LABEL,
+  THEME_SECTION_TITLE,
+  THEMES,
 } from '../../constants';
+import { ThemeId } from '../../models';
 import { Settings } from '../../services/settings';
 import { Speech } from '../../services/speech';
 
@@ -20,6 +23,9 @@ export class SettingsPanel {
   protected readonly closeLabel = SETTINGS_CLOSE_LABEL;
   protected readonly speakRepliesLabel = SPEAK_REPLIES_LABEL;
   protected readonly developerModeLabel = DEVELOPER_MODE_LABEL;
+
+  protected readonly themeTitle = THEME_SECTION_TITLE;
+  protected readonly themes = THEMES;
 
   readonly open = model(false);
 
@@ -46,6 +52,10 @@ export class SettingsPanel {
 
   protected onDeveloperModeChanged(event: Event): void {
     this.settings.setDeveloperMode((event.target as HTMLInputElement).checked);
+  }
+
+  protected onThemeChanged(id: ThemeId): void {
+    this.settings.setTheme(id);
   }
 
   protected onDialogClicked(event: MouseEvent): void {
