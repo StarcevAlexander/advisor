@@ -30,6 +30,7 @@ type ChangeRequest struct {
 }
 
 type ChangeResponse struct {
+	ID      string `json:"id"`
 	Message string `json:"message"`
 	URL     string `json:"url"`
 }

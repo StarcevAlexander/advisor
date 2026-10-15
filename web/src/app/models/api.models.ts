@@ -1,4 +1,4 @@
-import { MessageRole } from './chat.models';
+import { ChangeState, MessageRole } from './chat.models';
 
 export interface ApiTurn {
   role: MessageRole;
@@ -10,8 +10,16 @@ export interface ApiReply {
 }
 
 export interface ChangeReply {
+  id: string;
   message: string;
   url: string;
+}
+
+export interface ChangeStatus {
+  state: Exclude<ChangeState, 'unknown'>;
+  pullUrl?: string;
+  pullNumber?: number;
+  runUrl?: string;
 }
 
 export interface ApiErrorBody {

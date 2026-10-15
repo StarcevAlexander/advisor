@@ -6,12 +6,23 @@ import (
 	"net/http"
 )
 
+type State string
+
 type Receipt struct {
+	ID       string
 	PullsURL string
+}
+
+type Status struct {
+	State      State  `json:"state"`
+	PullURL    string `json:"pullUrl,omitempty"`
+	PullNumber int    `json:"pullNumber,omitempty"`
+	RunURL     string `json:"runUrl,omitempty"`
 }
 
 type Requester interface {
 	Request(ctx context.Context, text string) (Receipt, error)
+	Status(ctx context.Context, id string) (Status, error)
 }
 
 type GitHubConfig struct {
@@ -28,6 +39,7 @@ type GitHub struct {
 
 type dispatchInputs struct {
 	Request string `json:"request"`
+	ID      string `json:"id"`
 }
 
 type dispatchBody struct {
@@ -35,4 +47,27 @@ type dispatchBody struct {
 	Inputs dispatchInputs `json:"inputs"`
 }
 
-var ErrDispatchRejected = errors.New("github rejected the dispatch")
+type workflowRun struct {
+	DisplayTitle string `json:"display_title"`
+	Status       string `json:"status"`
+	Conclusion   string `json:"conclusion"`
+	HTMLURL      string `json:"html_url"`
+}
+
+type workflowRunsResponse struct {
+	WorkflowRuns []workflowRun `json:"workflow_runs"`
+}
+
+type pullRequest struct {
+	Number   int     `json:"number"`
+	HTMLURL  string  `json:"html_url"`
+	State    string  `json:"state"`
+	Draft    bool    `json:"draft"`
+	MergedAt *string `json:"merged_at"`
+}
+
+var (
+	ErrDispatchRejected = errors.New("github rejected the dispatch")
+	ErrLookupFailed     = errors.New("github lookup failed")
+	ErrInvalidID        = errors.New("invalid change id")
+)

@@ -11,6 +11,7 @@ const HealthPath = "/healthz"
 
 const (
 	ChangeRoute                 = "POST /api/change"
+	ChangeStatusRoute           = "GET /api/change/{id}"
 	MaxChangeBodyBytes    int64 = 16 << 10
 	MaxChangeRequestRunes       = 2000
 	ChangeAcceptedMessage       = "Заявка принята. Claude подготовит изменение за несколько минут. Когда оно появится в списке, проверьте и примите его."
@@ -28,7 +29,7 @@ const (
 	MaxFiles            = 8
 	AuthFailDelay       = 400 * time.Millisecond
 	CORSMaxAge          = "600"
-	CORSMethods         = "POST, OPTIONS"
+	CORSMethods         = "GET, POST, OPTIONS"
 	CORSHeaders         = "Authorization, Content-Type"
 	BearerPrefix        = "Bearer "
 )
@@ -44,5 +45,7 @@ const (
 	MsgUpstreamFailed  = "Советчик временно недоступен, попробуйте ещё раз"
 	MsgChangesDisabled = "Правка приложения не настроена на сервере"
 	MsgChangeTooLong   = "Описание изменения слишком длинное"
+	MsgBadChangeID     = "Неверный номер заявки"
+	MsgStatusFailed    = "Не удалось узнать статус заявки"
 	MsgChangeFailed    = "Не удалось отправить заявку на изменение, попробуйте ещё раз"
 )

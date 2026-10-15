@@ -6,6 +6,12 @@ import {
   API_CHAT_PATH,
   API_DEV_URL,
   API_MESSAGES,
+  CHANGE_ACTIVE_LIMIT_MS,
+  CHANGE_ACTIVE_POLL_INTERVAL_MS,
+  CHANGE_FIRST_POLL_DELAY_MS,
+  CHANGE_REVIEW_POLL_INTERVAL_MS,
+  CHANGE_RUN_LINK_LABEL,
+  CHANGE_STATE_TEXT,
   CHAT_HISTORY_STORAGE_KEY,
 } from '../constants';
 import { Access } from './access';
@@ -179,11 +185,17 @@ describe('Chat', () => {
       const request = http.expectOne(changeUrl);
       expect(request.request.body).toEqual({ request: 'Сделай кнопку красной' });
       expect(request.request.headers.get('Authorization')).toBe('Bearer secret-pass');
-      request.flush({ message: 'Заявка принята', url: 'https://github.com/me/app/pulls' });
+      request.flush({
+        id: '0123456789ab',
+        message: 'Заявка принята',
+        url: 'https://github.com/me/app/pulls',
+      });
       await vi.waitFor(() => expect(chat.busy()).toBe(false));
 
       const reply = chat.messages()[2];
-      expect(reply.text).toBe('Заявка принята');
+      expect(reply.text).toBe(CHANGE_STATE_TEXT.queued);
+      expect(reply.changeId).toBe('0123456789ab');
+      expect(reply.changeState).toBe('queued');
       expect(reply.link).toBe('https://github.com/me/app/pulls');
       expect(reply.edit).toBe(true);
       expect(reply.failed).toBe(false);
@@ -241,6 +253,126 @@ describe('Chat', () => {
 
       expect(chat.mode()).toBe('ask');
       http.expectOne(chatUrl).flush({ reply: 'Ок' });
+    });
+  });
+
+  describe('change tracking', () => {
+    const changeId = '0123456789ab';
+    const changeUrl = `${API_DEV_URL}${API_CHANGE_PATH}`;
+    const statusUrl = `${changeUrl}/${changeId}`;
+
+    async function submitChange(): Promise<void> {
+      chat.toggleEditMode();
+      chat.send({ text: 'Сделай кнопку красной', attachments: [] });
+      http.expectOne(changeUrl).flush({ id: changeId, message: 'ok', url: 'https://x.test/pulls' });
+      await vi.advanceTimersByTimeAsync(0);
+    }
+
+    async function pollOnce(delayMs: number, body: object): Promise<void> {
+      await vi.advanceTimersByTimeAsync(delayMs);
+      http.expectOne(statusUrl).flush(body);
+      await vi.advanceTimersByTimeAsync(0);
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('follows the request until it is merged and then stops asking', async () => {
+      await submitChange();
+
+      await pollOnce(CHANGE_FIRST_POLL_DELAY_MS, { state: 'working' });
+      expect(chat.messages()[2].changeState).toBe('working');
+      expect(chat.messages()[2].text).toBe(CHANGE_STATE_TEXT.working);
+
+      await pollOnce(CHANGE_ACTIVE_POLL_INTERVAL_MS, {
+        state: 'ready',
+        pullUrl: 'https://pr/7',
+        pullNumber: 7,
+      });
+      expect(chat.messages()[2].changeState).toBe('ready');
+      expect(chat.messages()[2].link).toBe('https://pr/7');
+      expect(chat.messages()[2].linkLabel).toBe('Открыть pull request №7');
+
+      await pollOnce(CHANGE_REVIEW_POLL_INTERVAL_MS, {
+        state: 'merged',
+        pullUrl: 'https://pr/7',
+        pullNumber: 7,
+      });
+      expect(chat.messages()[2].changeState).toBe('merged');
+      expect(chat.messages()[2].text).toBe(CHANGE_STATE_TEXT.merged);
+
+      await vi.advanceTimersByTimeAsync(CHANGE_REVIEW_POLL_INTERVAL_MS * 3);
+      http.expectNone(statusUrl);
+    });
+
+    it('links to the run log when the run failed', async () => {
+      await submitChange();
+
+      await pollOnce(CHANGE_FIRST_POLL_DELAY_MS, { state: 'failed', runUrl: 'https://run/1' });
+
+      expect(chat.messages()[2].changeState).toBe('failed');
+      expect(chat.messages()[2].link).toBe('https://run/1');
+      expect(chat.messages()[2].linkLabel).toBe(CHANGE_RUN_LINK_LABEL);
+    });
+
+    it('stops asking when the message is deleted', async () => {
+      await submitChange();
+
+      chat.remove(chat.messages()[2].id);
+      await vi.advanceTimersByTimeAsync(CHANGE_FIRST_POLL_DELAY_MS * 2);
+
+      http.expectNone(statusUrl);
+    });
+
+    it('keeps waiting when a status check fails', async () => {
+      await submitChange();
+
+      await vi.advanceTimersByTimeAsync(CHANGE_FIRST_POLL_DELAY_MS);
+      http.expectOne(statusUrl).flush({ error: 'x' }, { status: 502, statusText: 'Bad Gateway' });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(chat.messages()[2].changeState).toBe('queued');
+
+      await pollOnce(CHANGE_ACTIVE_POLL_INTERVAL_MS, { state: 'working' });
+      expect(chat.messages()[2].changeState).toBe('working');
+    });
+
+    it('resumes tracking a stored request in a new session', async () => {
+      await submitChange();
+      await pollOnce(CHANGE_FIRST_POLL_DELAY_MS, { state: 'working' });
+      TestBed.tick();
+
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [provideHttpClient(), provideHttpClientTesting()],
+      });
+      const restored = TestBed.inject(Chat);
+      const restoredHttp = TestBed.inject(HttpTestingController);
+
+      expect(restored.messages().some((message) => message.changeState === 'working')).toBe(true);
+      await vi.advanceTimersByTimeAsync(CHANGE_FIRST_POLL_DELAY_MS);
+      restoredHttp
+        .expectOne(statusUrl)
+        .flush({ state: 'ready', pullUrl: 'https://pr/9', pullNumber: 9 });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(restored.messages().some((message) => message.changeState === 'ready')).toBe(true);
+    });
+
+    it('gives up on a request that stayed active for too long', async () => {
+      await submitChange();
+      TestBed.tick();
+
+      vi.setSystemTime(Date.now() + CHANGE_ACTIVE_LIMIT_MS + 1000);
+      await vi.advanceTimersByTimeAsync(CHANGE_FIRST_POLL_DELAY_MS);
+
+      http.expectNone(statusUrl);
+      expect(chat.messages()[2].changeState).toBe('unknown');
+      expect(chat.messages()[2].text).toBe(CHANGE_STATE_TEXT.unknown);
     });
   });
 

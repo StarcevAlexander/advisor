@@ -15,6 +15,7 @@ import {
   ApiReply,
   ApiTurn,
   ChangeReply,
+  ChangeStatus,
   ChatApiError,
   ComposerPayload,
 } from '../models';
@@ -33,15 +34,23 @@ export class ChatApi {
       body.append('files', attachment.file, attachment.name);
     }
 
-    const response = await this.post<ApiReply>(API_CHAT_PATH, body);
+    const response = await this.send<ApiReply>('POST', API_CHAT_PATH, body);
     return response.reply;
   }
 
   requestChange(request: string): Promise<ChangeReply> {
-    return this.post<ChangeReply>(API_CHANGE_PATH, { request });
+    return this.send<ChangeReply>('POST', API_CHANGE_PATH, { request });
   }
 
-  private async post<T>(path: string, body: FormData | object): Promise<T> {
+  changeStatus(id: string): Promise<ChangeStatus> {
+    return this.send<ChangeStatus>('GET', `${API_CHANGE_PATH}/${encodeURIComponent(id)}`);
+  }
+
+  private async send<T>(
+    method: 'GET' | 'POST',
+    path: string,
+    body?: FormData | object,
+  ): Promise<T> {
     const baseUrl = isDevMode() ? API_DEV_URL : API_PRODUCTION_URL;
     if (!baseUrl) {
       throw new ChatApiError(API_MESSAGES.notConfigured);
@@ -49,7 +58,8 @@ export class ChatApi {
 
     try {
       return await firstValueFrom(
-        this.http.post<T>(`${baseUrl}${path}`, body, {
+        this.http.request<T>(method, `${baseUrl}${path}`, {
+          body,
           headers: new HttpHeaders({ Authorization: `Bearer ${this.access.password()}` }),
         }),
       );

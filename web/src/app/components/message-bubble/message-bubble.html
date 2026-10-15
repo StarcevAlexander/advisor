@@ -13,10 +13,8 @@
     </ul>
   }
 
-  @if (message().link; as link) {
-    <a class="bubble__link" [href]="link" target="_blank" rel="noopener noreferrer">
-      Открыть заявки на GitHub
-    </a>
+  @if (message().edit) {
+    <p class="bubble__badge">{{ badgeText }}</p>
   }
 
   @if (message().pending) {
@@ -25,6 +23,18 @@
     </p>
   } @else if (message().text) {
     <p class="bubble__text">{{ message().text }}</p>
+  }
+
+  @if (working()) {
+    <p class="bubble__dots" role="status" aria-label="Заявка выполняется">
+      <span></span><span></span><span></span>
+    </p>
+  }
+
+  @if (message().link; as link) {
+    <a class="bubble__link" [href]="link" target="_blank" rel="noopener noreferrer">
+      {{ message().linkLabel ?? defaultLinkLabel }}
+    </a>
   }
 
   <footer class="bubble__meta">

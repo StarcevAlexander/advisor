@@ -19,9 +19,23 @@ export interface ChatMessage {
   failed?: boolean;
   edit?: boolean;
   link?: string;
+  linkLabel?: string;
+  changeId?: string;
+  changeState?: ChangeState;
 }
 
 export type ChatMode = 'ask' | 'edit';
+
+export type ChangeState =
+  | 'queued'
+  | 'working'
+  | 'ready'
+  | 'draft'
+  | 'merged'
+  | 'closed'
+  | 'failed'
+  | 'nochange'
+  | 'unknown';
 
 export interface StoredMessage {
   id: string;
@@ -30,6 +44,9 @@ export interface StoredMessage {
   createdAt: string;
   edit?: boolean;
   link?: string;
+  linkLabel?: string;
+  changeId?: string;
+  changeState?: ChangeState;
 }
 
 export interface ComposerPayload {

@@ -1,6 +1,6 @@
 import { Service } from '@angular/core';
-import { CHAT_HISTORY_STORAGE_KEY, MAX_STORED_MESSAGES } from '../constants';
-import { ChatMessage, MessageRole, StoredMessage } from '../models';
+import { CHANGE_STATES, CHAT_HISTORY_STORAGE_KEY, MAX_STORED_MESSAGES } from '../constants';
+import { ChangeState, ChatMessage, MessageRole, StoredMessage } from '../models';
 
 const ROLES: readonly MessageRole[] = ['user', 'assistant'];
 
@@ -16,7 +16,11 @@ function isStoredMessage(value: unknown): value is StoredMessage {
     !Number.isNaN(Date.parse(candidate['createdAt'])) &&
     ROLES.includes(candidate['role'] as MessageRole) &&
     (candidate['link'] === undefined || typeof candidate['link'] === 'string') &&
-    (candidate['edit'] === undefined || typeof candidate['edit'] === 'boolean')
+    (candidate['edit'] === undefined || typeof candidate['edit'] === 'boolean') &&
+    (candidate['linkLabel'] === undefined || typeof candidate['linkLabel'] === 'string') &&
+    (candidate['changeId'] === undefined || typeof candidate['changeId'] === 'string') &&
+    (candidate['changeState'] === undefined ||
+      CHANGE_STATES.includes(candidate['changeState'] as ChangeState))
   );
 }
 
@@ -40,6 +44,9 @@ export class ChatHistory {
         createdAt: new Date(stored.createdAt),
         edit: stored.edit,
         link: stored.link,
+        linkLabel: stored.linkLabel,
+        changeId: stored.changeId,
+        changeState: stored.changeState,
       }));
     } catch {
       return [];
@@ -57,6 +64,9 @@ export class ChatHistory {
         createdAt: message.createdAt.toISOString(),
         edit: message.edit,
         link: message.link,
+        linkLabel: message.linkLabel,
+        changeId: message.changeId,
+        changeState: message.changeState,
       }));
     try {
       localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(stored));

@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, input, output } from '@angular/core';
+import { CHANGE_ACTIVE_STATES, CHANGE_BADGE_TEXT, CHANGE_LIST_LINK_LABEL } from '../../constants';
 import { ChatMessage } from '../../models';
 
 @Component({
@@ -16,7 +17,13 @@ export class MessageBubble {
   readonly stopRequested = output();
   readonly deleteRequested = output();
 
+  protected readonly badgeText = CHANGE_BADGE_TEXT;
+  protected readonly defaultLinkLabel = CHANGE_LIST_LINK_LABEL;
   protected readonly fromUser = computed(() => this.message().role === 'user');
+  protected readonly working = computed(() => {
+    const state = this.message().changeState;
+    return state !== undefined && CHANGE_ACTIVE_STATES.includes(state);
+  });
   protected readonly speakable = computed(
     () =>
       this.canSpeak() &&

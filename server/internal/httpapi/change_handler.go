@@ -48,6 +48,35 @@ func (h *changeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, MsgChangeFailed)
 		return
 	}
-	h.logger.Info("change requested", slog.Int("runes", utf8.RuneCountInString(text)))
-	writeJSON(w, http.StatusAccepted, ChangeResponse{Message: ChangeAcceptedMessage, URL: receipt.PullsURL})
+	h.logger.Info("change requested", slog.String("id", receipt.ID), slog.Int("runes", utf8.RuneCountInString(text)))
+	writeJSON(w, http.StatusAccepted, ChangeResponse{ID: receipt.ID, Message: ChangeAcceptedMessage, URL: receipt.PullsURL})
+}
+
+type changeStatusHandler struct {
+	requester changes.Requester
+	logger    *slog.Logger
+}
+
+func (h *changeStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if h.requester == nil {
+		writeError(w, http.StatusNotImplemented, MsgChangesDisabled)
+		return
+	}
+
+	id := r.PathValue("id")
+	if !changes.ValidID(id) {
+		writeError(w, http.StatusBadRequest, MsgBadChangeID)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), changes.RequestTimeout)
+	defer cancel()
+
+	status, err := h.requester.Status(ctx, id)
+	if err != nil {
+		h.logger.Error("change status failed", slog.String("id", id), slog.Any("error", err))
+		writeError(w, http.StatusBadGateway, MsgStatusFailed)
+		return
+	}
+	writeJSON(w, http.StatusOK, status)
 }

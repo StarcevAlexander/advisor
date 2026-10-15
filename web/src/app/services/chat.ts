@@ -1,8 +1,23 @@
 import { Service, effect, inject, signal } from '@angular/core';
-import { API_MESSAGES, WELCOME_TEXT } from '../constants';
+import {
+  API_MESSAGES,
+  CHANGE_ACTIVE_LIMIT_MS,
+  CHANGE_ACTIVE_POLL_INTERVAL_MS,
+  CHANGE_ACTIVE_STATES,
+  CHANGE_FIRST_POLL_DELAY_MS,
+  CHANGE_LIST_LINK_LABEL,
+  CHANGE_REVIEW_LIMIT_MS,
+  CHANGE_REVIEW_POLL_INTERVAL_MS,
+  CHANGE_RUN_LINK_LABEL,
+  CHANGE_STATE_TEXT,
+  CHANGE_TRACKED_STATES,
+  WELCOME_TEXT,
+} from '../constants';
 import {
   ApiTurn,
   Attachment,
+  ChangeState,
+  ChangeStatus,
   ChatApiError,
   ChatMessage,
   ChatMode,
@@ -24,6 +39,9 @@ export class Chat {
 
   constructor() {
     effect(() => this.history.save(this.messages()));
+    this.messages()
+      .filter((message) => this.isTracked(message))
+      .forEach((message) => this.scheduleChangePoll(message.id, CHANGE_FIRST_POLL_DELAY_MS));
   }
 
   toggleEditMode(): void {
@@ -101,7 +119,7 @@ export class Chat {
   ): Promise<void> {
     try {
       const reply = await this.api.ask(payload, history);
-      this.resolvePending(pendingId, reply, false);
+      this.updateMessage(pendingId, { text: reply, pending: false, failed: false });
     } catch (error) {
       this.failPending(pendingId, error);
     }
@@ -117,10 +135,90 @@ export class Chat {
         throw new ChatApiError(API_MESSAGES.editNoFiles);
       }
       const reply = await this.api.requestChange(request);
-      this.resolvePending(pendingId, reply.message, false, reply.url);
+      this.updateMessage(pendingId, {
+        text: CHANGE_STATE_TEXT.queued,
+        pending: false,
+        failed: false,
+        link: reply.url,
+        linkLabel: CHANGE_LIST_LINK_LABEL,
+        changeId: reply.id,
+        changeState: 'queued',
+      });
+      this.scheduleChangePoll(pendingId, CHANGE_FIRST_POLL_DELAY_MS);
     } catch (error) {
       this.failPending(pendingId, error);
     }
+  }
+
+  private scheduleChangePoll(messageId: string, delayMs: number): void {
+    setTimeout(() => void this.pollChange(messageId), delayMs);
+  }
+
+  private async pollChange(messageId: string): Promise<void> {
+    const message = this.findMessage(messageId);
+    if (!message?.changeId || !this.isTracked(message)) {
+      return;
+    }
+    if (this.isStale(message)) {
+      this.applyChangeState(messageId, 'unknown');
+      return;
+    }
+
+    if (this.access.granted()) {
+      try {
+        const status = await this.api.changeStatus(message.changeId);
+        this.applyChangeStatus(messageId, status);
+      } catch (error) {
+        if (error instanceof ChatApiError && error.unauthorized) {
+          this.access.clear();
+        }
+      }
+    }
+
+    const updated = this.findMessage(messageId);
+    if (updated && this.isTracked(updated)) {
+      this.scheduleChangePoll(messageId, this.pollInterval(updated.changeState));
+    }
+  }
+
+  private applyChangeStatus(messageId: string, status: ChangeStatus): void {
+    const hasPull = status.pullUrl !== undefined;
+    const patch: Partial<ChatMessage> = {
+      text: CHANGE_STATE_TEXT[status.state],
+      changeState: status.state,
+    };
+    if (hasPull) {
+      patch.link = status.pullUrl;
+      patch.linkLabel = `Открыть pull request №${status.pullNumber}`;
+    } else if (status.state === 'failed' && status.runUrl) {
+      patch.link = status.runUrl;
+      patch.linkLabel = CHANGE_RUN_LINK_LABEL;
+    }
+    this.updateMessage(messageId, patch);
+  }
+
+  private applyChangeState(messageId: string, state: ChangeState): void {
+    this.updateMessage(messageId, { text: CHANGE_STATE_TEXT[state], changeState: state });
+  }
+
+  private isTracked(message: ChatMessage): boolean {
+    return (
+      message.changeId !== undefined &&
+      message.changeState !== undefined &&
+      CHANGE_TRACKED_STATES.includes(message.changeState)
+    );
+  }
+
+  private isStale(message: ChatMessage): boolean {
+    const active =
+      message.changeState !== undefined && CHANGE_ACTIVE_STATES.includes(message.changeState);
+    const limit = active ? CHANGE_ACTIVE_LIMIT_MS : CHANGE_REVIEW_LIMIT_MS;
+    return Date.now() - message.createdAt.getTime() > limit;
+  }
+
+  private pollInterval(state: ChangeState | undefined): number {
+    const active = state !== undefined && CHANGE_ACTIVE_STATES.includes(state);
+    return active ? CHANGE_ACTIVE_POLL_INTERVAL_MS : CHANGE_REVIEW_POLL_INTERVAL_MS;
   }
 
   private failPending(id: string, error: unknown): void {
@@ -128,7 +226,20 @@ export class Chat {
       this.access.clear();
     }
     const message = error instanceof ChatApiError ? error.message : String(error);
-    this.resolvePending(id, message, true);
+    this.updateMessage(id, { text: message, pending: false, failed: true });
+  }
+
+  private findMessage(id: string): ChatMessage | undefined {
+    return this.messages().find((message) => message.id === id);
+  }
+
+  private updateMessage(id: string, patch: Partial<ChatMessage>): void {
+    this.messages.update((messages) =>
+      messages.map((message) => (message.id === id ? { ...message, ...patch } : message)),
+    );
+    if (patch.pending === false) {
+      this.busy.set(false);
+    }
   }
 
   private restoreMessages(): ChatMessage[] {
@@ -161,14 +272,5 @@ export class Chat {
           !message.pending && !message.failed && !message.edit && message.text.trim().length > 0,
       )
       .map((message) => ({ role: message.role, text: message.text }));
-  }
-
-  private resolvePending(id: string, text: string, failed: boolean, link?: string): void {
-    this.messages.update((messages) =>
-      messages.map((message) =>
-        message.id === id ? { ...message, text, pending: false, failed, link } : message,
-      ),
-    );
-    this.busy.set(false);
   }
 }
