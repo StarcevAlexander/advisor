@@ -63,7 +63,6 @@
     @if (access.granted()) {
       <app-composer
         [busy]="chat.busy()"
-        [placeholder]="placeholders[chat.mode()]"
         [(expanded)]="composing"
         (submitted)="onSubmitted($event)"
       />

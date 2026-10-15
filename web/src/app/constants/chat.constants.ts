@@ -1,5 +1,3 @@
-import { ChatMode } from '../models';
-
 export const SPEECH_LANG = 'ru-RU';
 
 export const MAX_ATTACHMENT_SIZE_BYTES = 20 * 1024 * 1024;
@@ -39,11 +37,6 @@ export const IMAGE_KEEP_BELOW_BYTES = 400 * 1024;
 export const SENDABLE_IMAGE_TYPES: readonly string[] = ['image/jpeg', 'image/png', 'image/webp'];
 
 export const ACCEPTED_FILE_TYPES = 'image/*,application/pdf,text/plain,text/markdown,text/csv';
-
-export const COMPOSER_PLACEHOLDERS = {
-  ask: 'Напишите сообщение…',
-  edit: 'Опишите, что изменить в приложении…',
-} as const satisfies Record<ChatMode, string>;
 
 export const WELCOME_TEXT =
   'Я ваш советчик. Напишите, что нужно, и при необходимости приложите файл.';
