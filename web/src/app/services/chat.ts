@@ -102,9 +102,8 @@ export class Chat {
     if (!request) {
       return;
     }
-    this.updateMessage(id, { text: '', pending: true, changeState: undefined, plan: undefined });
-    this.busy.set(true);
-    void this.requestChange(id, request, 0);
+    const pendingId = this.appendPending(true);
+    void this.requestChange(pendingId, request, 0);
   }
 
   cancelChange(id: string): void {
@@ -124,7 +123,6 @@ export class Chat {
   }
 
   private appendExchange(text: string, attachments: Attachment[], edit: boolean): string {
-    const pendingId = crypto.randomUUID();
     this.messages.update((messages) => [
       ...messages,
       {
@@ -135,6 +133,14 @@ export class Chat {
         createdAt: new Date(),
         edit,
       },
+    ]);
+    return this.appendPending(edit);
+  }
+
+  private appendPending(edit: boolean): string {
+    const pendingId = crypto.randomUUID();
+    this.messages.update((messages) => [
+      ...messages,
       {
         id: pendingId,
         role: 'assistant',
