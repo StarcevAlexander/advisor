@@ -13,6 +13,7 @@ import {
   CHANGE_RUN_LINK_LABEL,
   CHANGE_STATE_TEXT,
   CHANGE_TRACKED_STATES,
+  HISTORY_TRIMMED_NOTE,
   MAX_HISTORY_TURNS,
   WELCOME_TEXT,
 } from '../constants';
@@ -44,6 +45,11 @@ export class Chat {
   readonly busy = signal(false);
   readonly mode = computed<ChatMode>(() => (this.settings.developerMode() ? 'edit' : 'ask'));
   readonly lastReply = signal<ChatReply | undefined>(undefined);
+  readonly trimmedNote = computed(() =>
+    this.contextTurns(this.messages()).length > MAX_HISTORY_TURNS
+      ? HISTORY_TRIMMED_NOTE
+      : undefined,
+  );
 
   constructor() {
     effect(() => this.history.save(this.messages()));
@@ -335,7 +341,8 @@ export class Chat {
 
   private restoreMessages(): ChatMessage[] {
     const restored = this.history.load();
-    return restored.length > 0 ? restored : [this.createWelcomeMessage()];
+    const ordered = [...restored].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    return ordered.length > 0 ? ordered : [this.createWelcomeMessage()];
   }
 
   private createWelcomeMessage(): ChatMessage {
@@ -356,13 +363,16 @@ export class Chat {
     });
   }
 
-  private buildHistory(): ApiTurn[] {
-    return this.messages()
+  private contextTurns(messages: ChatMessage[]): ApiTurn[] {
+    return messages
       .filter(
         (message) =>
           !message.pending && !message.failed && !message.edit && message.text.trim().length > 0,
       )
-      .map((message) => ({ role: message.role, text: message.text }))
-      .slice(-MAX_HISTORY_TURNS);
+      .map((message) => ({ role: message.role, text: message.text }));
+  }
+
+  private buildHistory(): ApiTurn[] {
+    return this.contextTurns(this.messages()).slice(-MAX_HISTORY_TURNS);
   }
 }
