@@ -7,6 +7,8 @@ const (
 	HealthRoute = "GET /healthz"
 )
 
+const HealthPath = "/healthz"
+
 const (
 	FieldText    = "text"
 	FieldHistory = "history"

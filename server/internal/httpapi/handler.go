@@ -19,5 +19,5 @@ func NewHandler(options Options) http.Handler {
 		responder: options.Responder,
 		logger:    logger,
 	}))
-	return withCORS(options.AllowedOrigins, mux)
+	return withCORS(options.AllowedOrigins, withLogging(logger, mux))
 }

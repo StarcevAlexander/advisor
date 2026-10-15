@@ -8,6 +8,14 @@ export const MAX_ATTACHMENT_SIZE_BYTES = 20 * 1024 * 1024;
 
 export const MAX_ATTACHMENTS = 8;
 
+export const IMAGE_MAX_SIDE_PX = 1600;
+
+export const IMAGE_JPEG_QUALITY = 0.85;
+
+export const IMAGE_KEEP_BELOW_BYTES = 400 * 1024;
+
+export const SENDABLE_IMAGE_TYPES: readonly string[] = ['image/jpeg', 'image/png', 'image/webp'];
+
 export const ACCEPTED_FILE_TYPES = 'image/*,application/pdf,text/plain,text/markdown,text/csv';
 
 export const MIC_LABELS = {

@@ -1,7 +1,8 @@
-import { Component, computed, input, model, output, signal } from '@angular/core';
+import { Component, computed, inject, input, model, output, signal } from '@angular/core';
 import { form, FormField } from '@angular/forms/signals';
 import { ACCEPTED_FILE_TYPES, MAX_ATTACHMENT_SIZE_BYTES, MAX_ATTACHMENTS } from '../../constants';
 import { Attachment, ComposerPayload } from '../../models';
+import { ImageCompressor } from '../../services/image-compressor';
 
 @Component({
   imports: [FormField],
@@ -14,6 +15,8 @@ export class Composer {
   readonly expanded = model(false);
   readonly submitted = output<ComposerPayload>();
 
+  private readonly imageCompressor = inject(ImageCompressor);
+
   protected readonly acceptedTypes = ACCEPTED_FILE_TYPES;
   protected readonly model = signal({ text: '' });
   protected readonly composerForm = form(this.model);
@@ -25,7 +28,7 @@ export class Composer {
       (this.composerForm.text().value().trim().length > 0 || this.attachments().length > 0),
   );
 
-  protected onFilesSelected(event: Event): void {
+  protected async onFilesSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
     input.value = '';
@@ -41,13 +44,14 @@ export class Composer {
         this.error.set(`Файл «${file.name}» больше 20 МБ`);
         continue;
       }
+      const prepared = await this.imageCompressor.prepare(file);
       accepted.push({
         id: crypto.randomUUID(),
-        name: file.name,
-        mimeType: file.type,
-        size: file.size,
-        file,
-        previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+        name: prepared.name,
+        mimeType: prepared.type,
+        size: prepared.size,
+        file: prepared,
+        previewUrl: prepared.type.startsWith('image/') ? URL.createObjectURL(prepared) : undefined,
       });
     }
     this.attachments.update((current) => [...current, ...accepted]);

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"log/slog"
+	"net/http"
 
 	"advisor/server/internal/chat"
 )
@@ -11,6 +12,11 @@ type Options struct {
 	Password       string
 	AllowedOrigins []string
 	Logger         *slog.Logger
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
 }
 
 type ReplyResponse struct {

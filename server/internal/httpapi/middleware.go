@@ -3,6 +3,7 @@ package httpapi
 import (
 	"crypto/sha256"
 	"crypto/subtle"
+	"log/slog"
 	"net/http"
 	"slices"
 	"strings"
@@ -25,6 +26,30 @@ func withCORS(allowedOrigins []string, next http.Handler) http.Handler {
 			}
 		}
 		next.ServeHTTP(w, r)
+	})
+}
+
+func (r *statusRecorder) WriteHeader(status int) {
+	r.status = status
+	r.ResponseWriter.WriteHeader(status)
+}
+
+func withLogging(logger *slog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == HealthPath || r.Method == http.MethodOptions {
+			next.ServeHTTP(w, r)
+			return
+		}
+		started := time.Now()
+		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(recorder, r)
+		logger.Info("request",
+			slog.String("method", r.Method),
+			slog.String("path", r.URL.Path),
+			slog.Int("status", recorder.status),
+			slog.Int64("bytes", r.ContentLength),
+			slog.Duration("took", time.Since(started).Round(time.Millisecond)),
+		)
 	})
 }
 
