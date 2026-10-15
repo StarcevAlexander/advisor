@@ -45,9 +45,6 @@ export const COMPOSER_PLACEHOLDERS = {
   edit: 'Опишите, что изменить в приложении…',
 } as const satisfies Record<ChatMode, string>;
 
-export const EDIT_MODE_HINT =
-  'Режим правки: опишите идею, я распишу план по пунктам. Заявка уйдёт только после того, как вы выберете пункты и подтвердите.';
-
 export const WELCOME_TEXT =
   'Я ваш советчик. Напишите, что нужно, и при необходимости приложите файл.';
 

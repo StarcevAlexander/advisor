@@ -61,9 +61,6 @@
 
   <footer class="shell__dock">
     @if (access.granted()) {
-      @if (chat.mode() === 'edit') {
-        <p class="shell__hint" role="status">{{ editHint }}</p>
-      }
       <app-composer
         [busy]="chat.busy()"
         [placeholder]="placeholders[chat.mode()]"

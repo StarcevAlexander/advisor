@@ -17,7 +17,6 @@ import { SettingsPanel } from './components/settings-panel/settings-panel';
 import {
   CLEAR_CONFIRM_TIMEOUT_MS,
   COMPOSER_PLACEHOLDERS,
-  EDIT_MODE_HINT,
   SETTINGS_OPEN_LABEL,
   UPDATE_BUTTON_LABEL,
 } from './constants';
@@ -45,7 +44,6 @@ export class App {
   protected readonly updateLabel = UPDATE_BUTTON_LABEL;
   protected readonly version = APP_VERSION;
   protected readonly placeholders = COMPOSER_PLACEHOLDERS;
-  protected readonly editHint = EDIT_MODE_HINT;
   protected readonly composing = signal(false);
   protected readonly confirmingClear = signal(false);
   protected readonly settingsOpen = signal(false);
