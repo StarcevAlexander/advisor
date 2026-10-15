@@ -20,6 +20,33 @@
         </svg>
       </button>
     </header>
+    <fieldset class="themes">
+      <legend class="themes__title">{{ themeTitle }}</legend>
+      <div class="themes__grid">
+        @for (option of themes; track option.id) {
+          <label class="theme" [attr.data-theme]="option.id">
+            <input
+              class="theme__input"
+              type="radio"
+              name="theme"
+              [value]="option.id"
+              [checked]="settings.theme() === option.id"
+              (change)="onThemeChanged(option.id)"
+            />
+            <span class="theme__preview" aria-hidden="true">
+              <span class="theme__header"></span>
+              <span class="theme__bubble theme__bubble--assistant"></span>
+              <span class="theme__bubble theme__bubble--user"></span>
+              <span class="theme__composer">
+                <span class="theme__field"></span>
+                <span class="theme__mic"></span>
+              </span>
+            </span>
+            <span class="theme__label">{{ option.label }}</span>
+          </label>
+        }
+      </div>
+    </fieldset>
     @if (speech.synthesisSupported) {
       <label class="panel__toggle">
         <input
