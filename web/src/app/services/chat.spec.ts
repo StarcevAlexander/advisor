@@ -17,10 +17,12 @@ import {
 } from '../constants';
 import { Access } from './access';
 import { Chat } from './chat';
+import { Settings } from './settings';
 
 describe('Chat', () => {
   let chat: Chat;
   let access: Access;
+  let settings: Settings;
   let http: HttpTestingController;
 
   const chatUrl = `${API_DEV_URL}${API_CHAT_PATH}`;
@@ -32,6 +34,7 @@ describe('Chat', () => {
     });
     chat = TestBed.inject(Chat);
     access = TestBed.inject(Access);
+    settings = TestBed.inject(Settings);
     http = TestBed.inject(HttpTestingController);
     access.save('secret-pass');
   });
@@ -182,7 +185,7 @@ describe('Chat', () => {
     };
 
     async function proposeIdea(text = 'Сделай кнопку красной'): Promise<string> {
-      chat.toggleEditMode();
+      settings.setDeveloperMode(true);
       chat.send({ text, attachments: [] });
       http.expectOne(planUrl).flush(plan);
       await vi.waitFor(() => expect(chat.busy()).toBe(false));
@@ -190,11 +193,11 @@ describe('Chat', () => {
     }
 
     it('thinks the idea over first and shows the plan with every step selected', async () => {
-      chat.toggleEditMode();
+      settings.setDeveloperMode(true);
       expect(chat.mode()).toBe('edit');
 
       chat.send({ text: 'Сделай кнопку красной', attachments: [] });
-      expect(chat.mode()).toBe('ask');
+      expect(chat.mode()).toBe('edit');
       const request = http.expectOne(planUrl);
       expect(request.request.body).toEqual({ request: 'Сделай кнопку красной' });
       expect(request.request.headers.get('Authorization')).toBe('Bearer secret-pass');
@@ -211,7 +214,7 @@ describe('Chat', () => {
     });
 
     it('treats a plan without steps as a plain answer and offers nothing to send', async () => {
-      chat.toggleEditMode();
+      settings.setDeveloperMode(true);
       chat.send({ text: 'Может, что-нибудь поменять?', attachments: [] });
       http.expectOne(planUrl).flush({ summary: 'Уточните, что именно поменять', steps: [] });
       await vi.waitFor(() => expect(chat.busy()).toBe(false));
@@ -272,6 +275,20 @@ describe('Chat', () => {
       expect(chat.messages()[2].plan).toBeUndefined();
     });
 
+    it('stays in developer mode across sessions and keeps its messages', async () => {
+      await proposeIdea();
+      TestBed.tick();
+
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [provideHttpClient(), provideHttpClientTesting()],
+      });
+      const restored = TestBed.inject(Chat);
+
+      expect(restored.mode()).toBe('edit');
+      expect(restored.messages().map((message) => message.text)).toContain('Сделай кнопку красной');
+    });
+
     it('keeps the plan across sessions', async () => {
       await proposeIdea();
       TestBed.tick();
@@ -293,6 +310,7 @@ describe('Chat', () => {
       http.expectOne(changeUrl).flush({ message: 'Заявка принята', url: 'u' });
       await vi.waitFor(() => expect(chat.busy()).toBe(false));
 
+      settings.setDeveloperMode(false);
       chat.send({ text: 'Обычный вопрос', attachments: [] });
       const body = http.expectOne(chatUrl).request.body as FormData;
       const history = JSON.parse(body.get('history') as string) as { text: string }[];
@@ -302,7 +320,7 @@ describe('Chat', () => {
     });
 
     it('refuses attachments in edit mode without calling the server', async () => {
-      chat.toggleEditMode();
+      settings.setDeveloperMode(true);
       const file = new File(['x'], 'a.png', { type: 'image/png' });
 
       chat.send({
@@ -318,7 +336,7 @@ describe('Chat', () => {
     });
 
     it('shows the server explanation when editing is not configured', async () => {
-      chat.toggleEditMode();
+      settings.setDeveloperMode(true);
       chat.send({ text: 'Поправь', attachments: [] });
       http
         .expectOne(planUrl)
@@ -330,16 +348,6 @@ describe('Chat', () => {
 
       expect(chat.messages()[2].failed).toBe(true);
       expect(chat.messages()[2].text).toBe('Правка приложения не настроена на сервере');
-      expect(chat.mode()).toBe('ask');
-    });
-
-    it('does not switch the mode while a reply is pending', () => {
-      chat.send({ text: 'Привет', attachments: [] });
-
-      chat.toggleEditMode();
-
-      expect(chat.mode()).toBe('ask');
-      http.expectOne(chatUrl).flush({ reply: 'Ок' });
     });
   });
 
@@ -349,7 +357,7 @@ describe('Chat', () => {
     const statusUrl = `${changeUrl}/${changeId}`;
 
     async function submitChange(): Promise<void> {
-      chat.toggleEditMode();
+      settings.setDeveloperMode(true);
       chat.send({ text: 'Сделай кнопку красной', attachments: [] });
       http
         .expectOne(`${API_DEV_URL}${API_CHANGE_PLAN_PATH}`)

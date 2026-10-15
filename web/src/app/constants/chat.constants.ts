@@ -10,6 +10,10 @@ export const CHAT_HISTORY_STORAGE_KEY = 'advisor.chat-history';
 
 export const SPEAK_REPLIES_STORAGE_KEY = 'advisor.speak-replies';
 
+export const DEVELOPER_MODE_STORAGE_KEY = 'advisor.developer-mode';
+
+export const DEVELOPER_MODE_LABEL = 'Режим разработчика';
+
 export const SPEAK_REPLIES_LABEL = 'Озвучивать ответы';
 
 export const SETTINGS_TITLE = 'Настройки';
