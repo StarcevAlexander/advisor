@@ -17,6 +17,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 concurrency:
   group: claude-change
@@ -141,3 +142,7 @@ jobs:
             --title "feat(app): ${title_text}" \
             --body-file "$RUNNER_TEMP/pr-body.md" \
             $draft
+          if [ "$CHECK_OUTCOME" = "success" ]; then
+            gh pr merge "$branch" --squash --delete-branch --subject "feat(app): ${title_text}"
+            gh workflow run deploy.yml --ref "$BASE_BRANCH"
+          fi
