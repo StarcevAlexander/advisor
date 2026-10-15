@@ -25,7 +25,7 @@ export const SENDABLE_IMAGE_TYPES: readonly string[] = ['image/jpeg', 'image/png
 export const ACCEPTED_FILE_TYPES = 'image/*,application/pdf,text/plain,text/markdown,text/csv';
 
 export const MIC_LABELS = {
-  idle: 'Нажмите и говорите',
+  idle: 'Нажмите и говорите, я слушаю',
   listening: 'Слушаю… нажмите, чтобы отправить',
   unsupported: 'Голосовой ввод не поддерживается',
   denied: 'Нет доступа к микрофону',
