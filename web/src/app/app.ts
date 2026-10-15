@@ -4,29 +4,32 @@ import {
   ElementRef,
   afterNextRender,
   afterRenderEffect,
+  effect,
   inject,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { AccessGate } from './components/access-gate/access-gate';
 import { Composer } from './components/composer/composer';
 import { MessageBubble } from './components/message-bubble/message-bubble';
-import { MicButton } from './components/mic-button/mic-button';
 import {
   CLEAR_CONFIRM_TIMEOUT_MS,
   COMPOSER_PLACEHOLDERS,
   EDIT_MODE_HINT,
+  SPEAK_REPLIES_LABEL,
   UPDATE_BUTTON_LABEL,
 } from './constants';
 import { ComposerPayload } from './models';
 import { Access } from './services/access';
 import { AppUpdate } from './services/app-update';
 import { Chat } from './services/chat';
+import { Settings } from './services/settings';
 import { Speech } from './services/speech';
 import { APP_VERSION } from './version';
 
 @Component({
-  imports: [AccessGate, Composer, MessageBubble, MicButton],
+  imports: [AccessGate, Composer, MessageBubble],
   selector: 'app-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',
@@ -35,7 +38,9 @@ export class App {
   protected readonly access = inject(Access);
   protected readonly chat = inject(Chat);
   protected readonly speech = inject(Speech);
+  protected readonly settings = inject(Settings);
   protected readonly appUpdate = inject(AppUpdate);
+  protected readonly speakRepliesLabel = SPEAK_REPLIES_LABEL;
   protected readonly updateLabel = UPDATE_BUTTON_LABEL;
   protected readonly version = APP_VERSION;
   protected readonly placeholders = COMPOSER_PLACEHOLDERS;
@@ -48,6 +53,13 @@ export class App {
   private stickToBottom = true;
 
   constructor() {
+    effect(() => {
+      const reply = this.chat.lastReply();
+      if (reply && untracked(() => this.settings.speakReplies())) {
+        untracked(() => this.speech.speak(reply.id, reply.text));
+      }
+    });
+
     afterRenderEffect(() => {
       this.chat.messages();
       this.stickToBottom = true;
@@ -83,13 +95,12 @@ export class App {
     this.stickToBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 48;
   }
 
-  protected onMicPressed(): void {
-    if (this.speech.recognitionState() === 'listening') {
-      this.speech.stopListening();
-      return;
+  protected onSpeakRepliesChanged(event: Event): void {
+    const enabled = (event.target as HTMLInputElement).checked;
+    this.settings.setSpeakReplies(enabled);
+    if (!enabled) {
+      this.speech.stopSpeaking();
     }
-    this.speech.resetRecognitionError();
-    this.speech.listen((text) => this.chat.send({ text, attachments: [] }));
   }
 
   protected onClearClicked(): void {

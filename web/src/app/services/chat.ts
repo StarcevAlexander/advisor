@@ -24,6 +24,7 @@ import {
   ChatApiError,
   ChatMessage,
   ChatMode,
+  ChatReply,
   ComposerPayload,
 } from '../models';
 import { Access } from './access';
@@ -39,6 +40,7 @@ export class Chat {
   readonly messages = signal<ChatMessage[]>(this.restoreMessages());
   readonly busy = signal(false);
   readonly mode = signal<ChatMode>('ask');
+  readonly lastReply = signal<ChatReply | undefined>(undefined);
 
   constructor() {
     effect(() => this.history.save(this.messages()));
@@ -160,6 +162,7 @@ export class Chat {
     try {
       const reply = await this.api.ask(payload, history);
       this.updateMessage(pendingId, { text: reply, pending: false, failed: false });
+      this.lastReply.set({ id: pendingId, text: reply });
     } catch (error) {
       this.failPending(pendingId, error);
     }
@@ -177,6 +180,7 @@ export class Chat {
       const reply = await this.api.planChange(request);
       if (reply.steps.length === 0) {
         this.updateMessage(pendingId, { text: reply.summary, pending: false, failed: false });
+        this.lastReply.set({ id: pendingId, text: reply.summary });
         return;
       }
       this.updateMessage(pendingId, {
@@ -189,6 +193,7 @@ export class Chat {
           steps: reply.steps.map((text) => ({ id: crypto.randomUUID(), text, selected: true })),
         },
       });
+      this.lastReply.set({ id: pendingId, text: reply.summary });
     } catch (error) {
       this.failPending(pendingId, error);
     }

@@ -68,3 +68,8 @@ export interface ComposerPayload {
   text: string;
   attachments: Attachment[];
 }
+
+export interface ChatReply {
+  id: string;
+  text: string;
+}

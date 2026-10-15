@@ -22,17 +22,17 @@ describe('App', () => {
     localStorage.clear();
   });
 
-  it('asks for the password before showing the microphone button', async () => {
+  it('asks for the password before showing the composer', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
 
     expect(element.querySelector('h1')?.textContent).toContain('Советчик');
     expect(element.querySelector('app-access-gate')).toBeTruthy();
-    expect(element.querySelector('button[aria-label="Голосовой ввод"]')).toBeNull();
+    expect(element.querySelector('app-composer')).toBeNull();
   });
 
-  it('renders the welcome message and the microphone button once the password is stored', async () => {
+  it('renders the welcome message and the settings toggle once the password is stored', async () => {
     localStorage.setItem(ACCESS_PASSWORD_STORAGE_KEY, 'stored-pass');
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
@@ -40,6 +40,6 @@ describe('App', () => {
 
     expect(element.querySelector('app-access-gate')).toBeNull();
     expect(element.querySelectorAll('app-message-bubble').length).toBe(1);
-    expect(element.querySelector('button[aria-label="Голосовой ввод"]')).toBeTruthy();
+    expect(element.querySelector('app-composer')).toBeTruthy();
   });
 });

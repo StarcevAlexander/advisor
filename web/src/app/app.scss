@@ -46,7 +46,31 @@
 .shell__tools {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.75rem;
+}
+
+.shell__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  cursor: pointer;
+
+  input {
+    width: 1.125rem;
+    height: 1.125rem;
+    accent-color: var(--accent);
+  }
+
+  &:has(input:focus-visible) {
+    outline: 0.125rem solid var(--focus);
+    outline-offset: 0.125rem;
+    border-radius: 0.5rem;
+  }
 }
 
 .shell__hint {
@@ -137,14 +161,4 @@
   padding: 0.75rem 1rem max(1rem, env(safe-area-inset-bottom));
   transition: gap 0.45s var(--ease-out);
   background: linear-gradient(to top, var(--bg) 70%, transparent);
-}
-
-.shell__interim {
-  margin: 0;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.875rem;
-  background: var(--surface);
-  color: var(--text-muted);
-  font-style: italic;
-  text-align: center;
 }
