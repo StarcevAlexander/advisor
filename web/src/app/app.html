@@ -50,6 +50,8 @@
           [canSpeak]="speech.synthesisSupported"
           [speaking]="speech.speakingId() === message.id"
           [locked]="chat.busy()"
+          [retryable]="chat.retryableIds().has(message.id)"
+          (retryRequested)="chat.retry(message.id)"
           (stepToggled)="chat.toggleStep(message.id, $event)"
           (confirmRequested)="chat.confirmChange(message.id)"
           (cancelRequested)="chat.cancelChange(message.id)"

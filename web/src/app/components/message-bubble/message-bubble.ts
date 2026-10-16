@@ -20,6 +20,8 @@ export class MessageBubble {
   readonly speaking = input(false);
   readonly canSpeak = input(false);
   readonly locked = input(false);
+  readonly retryable = input(false);
+  readonly retryRequested = output();
   readonly speakRequested = output();
   readonly stopRequested = output();
   readonly deleteRequested = output();

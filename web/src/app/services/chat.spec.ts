@@ -109,6 +109,109 @@ describe('Chat', () => {
     expect(access.granted()).toBe(true);
   });
 
+  describe('retry', () => {
+    const unavailable = { error: 'Советчик временно недоступен, попробуйте ещё раз' };
+
+    async function failFirstAsk(text = 'Привет'): Promise<string> {
+      chat.send({ text, attachments: [] });
+      http.expectOne(chatUrl).flush(unavailable, { status: 502, statusText: 'Bad Gateway' });
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+      return chat.messages()[1].id;
+    }
+
+    it('offers a retry only for the user message whose reply failed', async () => {
+      const id = await failFirstAsk();
+
+      expect(chat.retryableIds().has(id)).toBe(true);
+      expect(chat.retryableIds().size).toBe(1);
+    });
+
+    it('resends the same message into the failed reply without adding messages', async () => {
+      const id = await failFirstAsk();
+
+      chat.retry(id);
+      expect(chat.busy()).toBe(true);
+      expect(chat.messages().length).toBe(3);
+      expect(chat.messages()[2].pending).toBe(true);
+      expect(chat.messages()[2].failed).toBe(false);
+      expect(chat.retryableIds().size).toBe(0);
+
+      const request = http.expectOne(chatUrl);
+      expect((request.request.body as FormData).get('text')).toBe('Привет');
+      request.flush({ reply: 'Ок' });
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+    });
+
+    it('sends the earlier turns but not the retried exchange as history', async () => {
+      chat.send({ text: 'Первый', attachments: [] });
+      http.expectOne(chatUrl).flush({ reply: 'Ответ' });
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+      chat.send({ text: 'Второй', attachments: [] });
+      http.expectOne(chatUrl).flush(unavailable, { status: 502, statusText: 'x' });
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+
+      chat.retry(chat.messages()[3].id);
+      const body = http.expectOne(chatUrl).request.body as FormData;
+      const history = JSON.parse(body.get('history') as string) as { text: string }[];
+
+      expect(history.map((turn) => turn.text)).toContain('Ответ');
+      expect(history.map((turn) => turn.text)).not.toContain('Второй');
+    });
+
+    it('shows the answer in the same bubble when the retry succeeds', async () => {
+      const id = await failFirstAsk();
+      const replyId = chat.messages()[2].id;
+
+      chat.retry(id);
+      http.expectOne(chatUrl).flush({ reply: 'Здравствуйте' });
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+
+      expect(chat.messages().length).toBe(3);
+      expect(chat.messages()[2].id).toBe(replyId);
+      expect(chat.messages()[2].text).toBe('Здравствуйте');
+      expect(chat.messages()[2].failed).toBe(false);
+      expect(chat.retryableIds().size).toBe(0);
+    });
+
+    it('keeps the retry available when it fails again', async () => {
+      const id = await failFirstAsk();
+
+      chat.retry(id);
+      http.expectOne(chatUrl).flush(unavailable, { status: 502, statusText: 'x' });
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+
+      expect(chat.messages()[2].failed).toBe(true);
+      expect(chat.retryableIds().has(id)).toBe(true);
+    });
+
+    it('does nothing while another request is pending', async () => {
+      const id = await failFirstAsk();
+      chat.send({ text: 'Ещё', attachments: [] });
+
+      chat.retry(id);
+
+      expect(chat.messages().length).toBe(5);
+      http.expectOne(chatUrl).flush({ reply: 'Ок' });
+    });
+
+    it('retries an edit request through the planner', async () => {
+      settings.setDeveloperMode(true);
+      chat.send({ text: 'Сделай кнопку красной', attachments: [] });
+      http
+        .expectOne(`${API_DEV_URL}${API_CHANGE_PLAN_PATH}`)
+        .flush(unavailable, { status: 502, statusText: 'x' });
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+
+      chat.retry(chat.messages()[1].id);
+      const request = http.expectOne(`${API_DEV_URL}${API_CHANGE_PLAN_PATH}`);
+      expect((request.request.body as { request: string }).request).toBe('Сделай кнопку красной');
+      request.flush({ summary: 'Сделаю', steps: ['Кнопка станет красной'] });
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+
+      expect(chat.messages()[2].changeState).toBe('plan');
+    });
+  });
+
   it('removes a finished message but keeps a pending one', async () => {
     chat.send({ text: 'Привет', attachments: [] });
     const [, userMessage, pendingMessage] = chat.messages();

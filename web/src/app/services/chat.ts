@@ -49,6 +49,17 @@ export class Chat {
     Math.min(this.contextTurns(this.messages()).length, MAX_HISTORY_TURNS),
   );
   readonly contextTotal = computed(() => this.contextTurns(this.messages()).length);
+  readonly retryableIds = computed(() => {
+    const messages = this.messages();
+    const ids = new Set<string>();
+    messages.forEach((message, index) => {
+      const reply = messages[index + 1];
+      if (message.role === 'user' && reply?.role === 'assistant' && reply.failed) {
+        ids.add(message.id);
+      }
+    });
+    return ids;
+  });
 
   constructor() {
     effect(() => this.history.save(this.messages()));
@@ -80,6 +91,30 @@ export class Chat {
       return;
     }
     void this.requestReply(pendingId, { text, attachments: payload.attachments }, history);
+  }
+
+  retry(id: string): void {
+    const messages = this.messages();
+    const index = messages.findIndex((message) => message.id === id);
+    const request = messages[index];
+    const reply = messages[index + 1];
+    if (this.busy() || !this.retryableIds().has(id) || !request || !reply) {
+      return;
+    }
+
+    const history = this.contextTurns(messages.slice(0, index)).slice(-MAX_HISTORY_TURNS);
+    this.updateMessage(reply.id, { text: '', pending: true, failed: false });
+    this.busy.set(true);
+
+    if (request.edit) {
+      void this.requestPlan(reply.id, request.text, request.attachments.length, history);
+      return;
+    }
+    void this.requestReply(
+      reply.id,
+      { text: request.text, attachments: request.attachments },
+      history,
+    );
   }
 
   toggleStep(messageId: string, stepId: string): void {
