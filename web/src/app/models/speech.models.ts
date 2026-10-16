@@ -19,7 +19,7 @@ export interface Recognition {
   interimResults: boolean;
   onresult: ((event: RecognitionEvent) => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: { readonly error?: string }) => void) | null;
   start(): void;
   stop(): void;
 }

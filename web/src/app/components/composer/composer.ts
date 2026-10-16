@@ -7,6 +7,7 @@ import {
   VOICE_INPUT_LABELS,
 } from '../../constants';
 import { Attachment, ComposerPayload } from '../../models';
+import { ErrorLog } from '../../services/error-log';
 import { ImageCompressor } from '../../services/image-compressor';
 import { Speech } from '../../services/speech';
 
@@ -25,6 +26,7 @@ export class Composer {
   protected readonly voiceLabels = VOICE_INPUT_LABELS;
 
   private readonly imageCompressor = inject(ImageCompressor);
+  private readonly errorLog = inject(ErrorLog);
 
   protected readonly acceptedTypes = ACCEPTED_FILE_TYPES;
   protected readonly model = signal({ text: '' });
@@ -45,11 +47,11 @@ export class Composer {
     const accepted: Attachment[] = [];
     for (const file of files) {
       if (this.attachments().length + accepted.length >= MAX_ATTACHMENTS) {
-        this.error.set(`Можно приложить не больше ${MAX_ATTACHMENTS} файлов`);
+        this.reportError(`Можно приложить не больше ${MAX_ATTACHMENTS} файлов`);
         break;
       }
       if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
-        this.error.set(`Файл «${file.name}» больше 20 МБ`);
+        this.reportError(`Файл «${file.name}» больше 20 МБ`);
         continue;
       }
       const prepared = await this.imageCompressor.prepare(file);
@@ -126,5 +128,10 @@ export class Composer {
     this.model.set({ text: '' });
     this.attachments.set([]);
     this.error.set(undefined);
+  }
+
+  private reportError(message: string): void {
+    this.error.set(message);
+    this.errorLog.record('attachment', message);
   }
 }

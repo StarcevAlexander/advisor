@@ -12,6 +12,7 @@ import {
 import {
   APPEARANCE_TITLE,
   BACK_LABEL,
+  ERROR_LOG_TITLE,
   DEVELOPER_MODE_LABEL,
   ROLLBACK_MENU_HINT,
   ROLLBACK_MENU_LABEL,
@@ -30,8 +31,10 @@ import { Access } from '../../services/access';
 import { Chat } from '../../services/chat';
 import { Settings } from '../../services/settings';
 import { Speech } from '../../services/speech';
+import { ErrorLogScreen } from '../error-log/error-log';
 
 @Component({
+  imports: [ErrorLogScreen],
   selector: 'app-settings-panel',
   styleUrl: './settings-panel.scss',
   templateUrl: './settings-panel.html',
@@ -52,6 +55,7 @@ export class SettingsPanel {
   protected readonly themeTitle = THEME_SECTION_TITLE;
   protected readonly scaleTitle = SCALE_SECTION_TITLE;
   protected readonly backLabel = BACK_LABEL;
+  protected readonly errorLogTitle = ERROR_LOG_TITLE;
   protected readonly themes = THEMES;
   protected readonly minScale = MIN_SCALE;
   protected readonly maxScale = MAX_SCALE;
@@ -69,6 +73,8 @@ export class SettingsPanel {
         return this.themeTitle;
       case 'scale':
         return this.scaleTitle;
+      case 'errors':
+        return this.errorLogTitle;
       default:
         return this.title;
     }

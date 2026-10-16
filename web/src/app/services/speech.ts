@@ -1,6 +1,7 @@
-import { Service, signal } from '@angular/core';
+import { Service, inject, signal } from '@angular/core';
 import { SPEECH_LANG } from '../constants';
 import { Recognition, RecognitionConstructor } from '../models';
+import { ErrorLog } from './error-log';
 
 @Service()
 export class Speech {
@@ -9,6 +10,7 @@ export class Speech {
   readonly synthesisSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
   readonly recognitionSupported = this.recognitionConstructor() !== undefined;
 
+  private readonly errorLog = inject(ErrorLog);
   private recognition?: Recognition;
 
   startListening(onText: (text: string) => void): void {
@@ -30,11 +32,21 @@ export class Speech {
       onText(text.trim());
     };
     recognition.onend = () => this.finishListening();
-    recognition.onerror = () => this.finishListening();
+    recognition.onerror = (event) => {
+      if (event.error !== 'aborted') {
+        this.errorLog.record('microphone', event.error ?? 'Неизвестная ошибка');
+      }
+      this.finishListening();
+    };
 
     this.recognition = recognition;
     this.listening.set(true);
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (error) {
+      this.errorLog.record('microphone', String(error));
+      this.finishListening();
+    }
   }
 
   stopListening(): void {
@@ -56,7 +68,12 @@ export class Speech {
       utterance.voice = voice;
     }
     utterance.onend = () => this.clearSpeaking(id);
-    utterance.onerror = () => this.clearSpeaking(id);
+    utterance.onerror = (event) => {
+      if (event.error !== 'canceled' && event.error !== 'interrupted') {
+        this.errorLog.record('speech', event.error || 'Неизвестная ошибка');
+      }
+      this.clearSpeaking(id);
+    };
 
     this.speakingId.set(id);
     speechSynthesis.speak(utterance);
