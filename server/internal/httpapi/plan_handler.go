@@ -23,8 +23,8 @@ func (h *planHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.Body = http.MaxBytesReader(w, r.Body, MaxChangeBodyBytes)
-	var body ChangeRequest
+	r.Body = http.MaxBytesReader(w, r.Body, MaxPlanBodyBytes)
+	var body PlanRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, MsgBadRequest)
 		return
@@ -43,7 +43,7 @@ func (h *planHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), chat.RequestTimeout)
 	defer cancel()
 
-	plan, err := h.planner.Plan(ctx, text)
+	plan, err := h.planner.Plan(ctx, text, body.History)
 	if err != nil {
 		h.logger.Error("change plan failed", slog.Any("error", err))
 		writeError(w, http.StatusBadGateway, MsgPlanFailed)

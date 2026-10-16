@@ -30,6 +30,11 @@ type ChangeRequest struct {
 	Request string `json:"request"`
 }
 
+type PlanRequest struct {
+	Request string      `json:"request"`
+	History []chat.Turn `json:"history"`
+}
+
 type ChangeResponse struct {
 	ID      string `json:"id"`
 	Message string `json:"message"`

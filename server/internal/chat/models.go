@@ -33,7 +33,7 @@ type Plan struct {
 }
 
 type Planner interface {
-	Plan(ctx context.Context, request string) (Plan, error)
+	Plan(ctx context.Context, request string, history []Turn) (Plan, error)
 }
 
 var (

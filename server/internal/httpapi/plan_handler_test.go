@@ -15,13 +15,15 @@ import (
 )
 
 type fakePlanner struct {
-	plan     chat.Plan
-	err      error
-	requests []string
+	plan      chat.Plan
+	err       error
+	requests  []string
+	histories [][]chat.Turn
 }
 
-func (f *fakePlanner) Plan(_ context.Context, request string) (chat.Plan, error) {
+func (f *fakePlanner) Plan(_ context.Context, request string, history []chat.Turn) (chat.Plan, error) {
 	f.requests = append(f.requests, request)
+	f.histories = append(f.histories, history)
 	return f.plan, f.err
 }
 
@@ -60,6 +62,23 @@ func TestChangePlan(t *testing.T) {
 	}
 	if len(planner.requests) != 1 || planner.requests[0] != "Сделай кнопку красной" {
 		t.Errorf("requests = %v", planner.requests)
+	}
+}
+
+func TestChangePlanPassesHistory(t *testing.T) {
+	planner := &fakePlanner{plan: chat.Plan{Summary: "Сделаю", Steps: []string{"Шаг"}}}
+	body := `{"request":"тёмно-красный","history":[{"role":"user","text":"Сделай кнопку красной"},{"role":"assistant","text":"Какой оттенок?"}]}`
+
+	recorder := postPlan(t, planner, &fakeRequester{}, testPassword, body)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if len(planner.histories) != 1 || len(planner.histories[0]) != 2 {
+		t.Fatalf("histories = %v", planner.histories)
+	}
+	if got := planner.histories[0][1]; got.Role != chat.RoleAssistant || got.Text != "Какой оттенок?" {
+		t.Errorf("history[1] = %+v", got)
 	}
 }
 

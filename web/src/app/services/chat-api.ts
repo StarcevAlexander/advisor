@@ -40,8 +40,8 @@ export class ChatApi {
     return response.reply;
   }
 
-  planChange(request: string): Promise<ChangePlanReply> {
-    return this.send<ChangePlanReply>('POST', API_CHANGE_PLAN_PATH, { request });
+  planChange(request: string, history: ApiTurn[]): Promise<ChangePlanReply> {
+    return this.send<ChangePlanReply>('POST', API_CHANGE_PLAN_PATH, { request, history });
   }
 
   requestChange(request: string): Promise<ChangeReply> {

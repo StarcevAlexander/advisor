@@ -10,13 +10,14 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
-func (c *Claude) Plan(ctx context.Context, request string) (Plan, error) {
+func (c *Claude) Plan(ctx context.Context, request string, history []Turn) (Plan, error) {
+	messages := append(historyMessages(history), anthropic.NewUserMessage(anthropic.NewTextBlock(request)))
 	response, err := c.client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:        c.model,
 		MaxTokens:    PlanMaxOutputTokens,
 		System:       []anthropic.TextBlockParam{{Text: PlanSystemPrompt}},
 		OutputConfig: anthropic.OutputConfigParam{Effort: anthropic.OutputConfigEffortMedium},
-		Messages:     []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(request))},
+		Messages:     messages,
 	})
 	if err != nil {
 		return Plan{}, fmt.Errorf("claude plan request: %w", err)

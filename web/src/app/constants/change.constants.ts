@@ -49,6 +49,8 @@ export const CHANGE_REQUEST_MAX_RUNES = 2000;
 
 export const CHANGE_REQUEST_STEPS_HEADER = 'Сделай только эти изменения:';
 
+export const CHANGE_PLAN_STEPS_HEADER = 'Предложенные пункты:';
+
 export const UPDATE_BUTTON_LABEL = 'Обновить';
 
 export const CHANGE_CANCEL_LABEL = 'Отмена';

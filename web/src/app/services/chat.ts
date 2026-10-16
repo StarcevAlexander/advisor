@@ -6,6 +6,7 @@ import {
   CHANGE_ACTIVE_STATES,
   CHANGE_FIRST_POLL_DELAY_MS,
   CHANGE_LIST_LINK_LABEL,
+  CHANGE_PLAN_STEPS_HEADER,
   CHANGE_REQUEST_MAX_RUNES,
   CHANGE_REQUEST_STEPS_HEADER,
   CHANGE_REVIEW_LIMIT_MS,
@@ -75,7 +76,7 @@ export class Chat {
     const pendingId = this.appendExchange(text, payload.attachments, editing);
 
     if (editing) {
-      void this.requestPlan(pendingId, text, payload.attachments.length);
+      void this.requestPlan(pendingId, text, payload.attachments.length, history);
       return;
     }
     void this.requestReply(pendingId, { text, attachments: payload.attachments }, history);
@@ -177,12 +178,13 @@ export class Chat {
     pendingId: string,
     request: string,
     attachmentsCount: number,
+    history: ApiTurn[],
   ): Promise<void> {
     try {
       if (attachmentsCount > 0) {
         throw new ChatApiError(API_MESSAGES.editNoFiles);
       }
-      const reply = await this.api.planChange(request);
+      const reply = await this.api.planChange(request, history);
       if (reply.steps.length === 0) {
         this.updateMessage(pendingId, { text: reply.summary, pending: false, failed: false });
         this.lastReply.set({ id: pendingId, text: reply.summary });
@@ -363,13 +365,21 @@ export class Chat {
 
   private contextTurns(messages: ChatMessage[]): ApiTurn[] {
     return messages
-      .filter(
-        (message) => !message.pending && !message.failed && message.text.trim().length > 0,
-      )
-      .map((message) => ({ role: message.role, text: message.text }));
+      .filter((message) => !message.pending && !message.failed && message.text.trim().length > 0)
+      .map((message) => ({ role: message.role, text: this.editTurnText(message) }));
   }
 
   private buildHistory(): ApiTurn[] {
     return this.contextTurns(this.messages()).slice(-MAX_HISTORY_TURNS);
+  }
+
+  private editTurnText(message: ChatMessage): string {
+    const text = message.text.trim();
+    const steps = message.plan?.steps ?? [];
+    if (steps.length === 0) {
+      return text;
+    }
+    const list = steps.map((step, index) => `${index + 1}. ${step.text}`).join('\n');
+    return `${text}\n\n${CHANGE_PLAN_STEPS_HEADER}\n${list}`;
   }
 }

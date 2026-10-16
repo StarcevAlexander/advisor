@@ -199,7 +199,9 @@ describe('Chat', () => {
       chat.send({ text: 'Сделай кнопку красной', attachments: [] });
       expect(chat.mode()).toBe('edit');
       const request = http.expectOne(planUrl);
-      expect(request.request.body).toEqual({ request: 'Сделай кнопку красной' });
+      const sent = request.request.body as { request: string; history: { text: string }[] };
+      expect(sent.request).toBe('Сделай кнопку красной');
+      expect(sent.history.map((turn) => turn.text)).not.toContain('Сделай кнопку красной');
       expect(request.request.headers.get('Authorization')).toBe('Bearer secret-pass');
       request.flush(plan);
       await vi.waitFor(() => expect(chat.busy()).toBe(false));
@@ -316,7 +318,28 @@ describe('Chat', () => {
       const history = JSON.parse(body.get('history') as string) as { text: string }[];
 
       expect(history.map((turn) => turn.text)).toContain('Сделай кнопку красной');
-      expect(history.map((turn) => turn.text)).toContain('Сделаю кнопку красной');
+      expect(history.some((turn) => turn.text.includes('Сделаю кнопку красной'))).toBe(true);
+    });
+
+    it('gives the planner the whole earlier dialogue with the proposed steps', async () => {
+      chat.send({ text: 'Обычный вопрос', attachments: [] });
+      http.expectOne(chatUrl).flush({ reply: 'Обычный ответ' });
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+      await proposeIdea();
+
+      chat.send({ text: 'Пусть будет тёмно-красной', attachments: [] });
+      const body = http.expectOne(planUrl).request.body as {
+        request: string;
+        history: { role: string; text: string }[];
+      };
+
+      expect(body.request).toBe('Пусть будет тёмно-красной');
+      const texts = body.history.map((turn) => turn.text);
+      expect(texts).toContain('Обычный вопрос');
+      expect(texts).toContain('Сделай кнопку красной');
+      const planTurn = body.history.find((turn) => turn.text.includes('Сделаю кнопку красной'));
+      expect(planTurn?.role).toBe('assistant');
+      expect(planTurn?.text).toContain('1. Кнопка станет красной');
     });
 
     it('refuses attachments in edit mode without calling the server', async () => {

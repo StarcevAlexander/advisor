@@ -14,6 +14,7 @@ const (
 	ChangeStatusRoute           = "GET /api/change/{id}"
 	ChangePlanRoute             = "POST /api/change/plan"
 	MaxChangeBodyBytes    int64 = 16 << 10
+	MaxPlanBodyBytes      int64 = 128 << 10
 	MaxChangeRequestRunes       = 2000
 	ChangeAcceptedMessage       = "Заявка принята. Claude подготовит изменение за несколько минут. Когда оно появится в списке, проверьте и примите его."
 )
