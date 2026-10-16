@@ -23,6 +23,8 @@ type Status struct {
 type Requester interface {
 	Request(ctx context.Context, text string) (Receipt, error)
 	Status(ctx context.Context, id string) (Status, error)
+	Rollback(ctx context.Context) (Receipt, error)
+	RollbackStatus(ctx context.Context, id string) (Status, error)
 }
 
 type GitHubConfig struct {
@@ -42,9 +44,19 @@ type dispatchInputs struct {
 	ID      string `json:"id"`
 }
 
+type rollbackInputs struct {
+	ID string `json:"id"`
+}
+
 type dispatchBody struct {
-	Ref    string         `json:"ref"`
-	Inputs dispatchInputs `json:"inputs"`
+	Ref    string `json:"ref"`
+	Inputs any    `json:"inputs"`
+}
+
+type trackedWorkflow struct {
+	file         string
+	runPrefix    string
+	branchPrefix string
 }
 
 type workflowRun struct {

@@ -1,6 +1,8 @@
-import { Component, ElementRef, effect, inject, model, viewChild } from '@angular/core';
+import { Component, ElementRef, effect, inject, model, output, viewChild } from '@angular/core';
 import {
   DEVELOPER_MODE_LABEL,
+  ROLLBACK_MENU_HINT,
+  ROLLBACK_MENU_LABEL,
   SETTINGS_CLOSE_LABEL,
   SETTINGS_TITLE,
   SPEAK_REPLIES_LABEL,
@@ -8,6 +10,8 @@ import {
   THEMES,
 } from '../../constants';
 import { ThemeId } from '../../models';
+import { Access } from '../../services/access';
+import { Chat } from '../../services/chat';
 import { Settings } from '../../services/settings';
 import { Speech } from '../../services/speech';
 
@@ -18,16 +22,21 @@ import { Speech } from '../../services/speech';
 })
 export class SettingsPanel {
   protected readonly settings = inject(Settings);
+  protected readonly chat = inject(Chat);
+  protected readonly access = inject(Access);
   protected readonly speech = inject(Speech);
   protected readonly title = SETTINGS_TITLE;
   protected readonly closeLabel = SETTINGS_CLOSE_LABEL;
   protected readonly speakRepliesLabel = SPEAK_REPLIES_LABEL;
   protected readonly developerModeLabel = DEVELOPER_MODE_LABEL;
+  protected readonly rollbackLabel = ROLLBACK_MENU_LABEL;
+  protected readonly rollbackHint = ROLLBACK_MENU_HINT;
 
   protected readonly themeTitle = THEME_SECTION_TITLE;
   protected readonly themes = THEMES;
 
   readonly open = model(false);
+  readonly rollbackRequested = output();
 
   private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
 

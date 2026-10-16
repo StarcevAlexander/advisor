@@ -32,5 +32,13 @@ func NewHandler(options Options) http.Handler {
 		requester: options.Changes,
 		logger:    logger,
 	}))
+	mux.Handle(RollbackRoute, withPassword(options.Password, &rollbackHandler{
+		requester: options.Changes,
+		logger:    logger,
+	}))
+	mux.Handle(RollbackStatusRoute, withPassword(options.Password, &rollbackStatusHandler{
+		requester: options.Changes,
+		logger:    logger,
+	}))
 	return withCORS(options.AllowedOrigins, withLogging(logger, mux))
 }

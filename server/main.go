@@ -44,9 +44,10 @@ func run() error {
 	var changeRequester changes.Requester
 	if cfg.GitHubToken != "" {
 		changeRequester = changes.NewGitHub(changes.GitHubConfig{
-			Token:  cfg.GitHubToken,
-			Repo:   cfg.GitHubRepo,
-			Branch: cfg.GitHubBranch,
+			Token:   cfg.GitHubToken,
+			Repo:    cfg.GitHubRepo,
+			Branch:  cfg.GitHubBranch,
+			BaseURL: cfg.GitHubAPIURL,
 		})
 	}
 

@@ -39,6 +39,7 @@ function isStoredMessage(value: unknown): value is StoredMessage {
     ROLES.includes(candidate['role'] as MessageRole) &&
     (candidate['link'] === undefined || typeof candidate['link'] === 'string') &&
     (candidate['edit'] === undefined || typeof candidate['edit'] === 'boolean') &&
+    (candidate['rollback'] === undefined || typeof candidate['rollback'] === 'boolean') &&
     (candidate['linkLabel'] === undefined || typeof candidate['linkLabel'] === 'string') &&
     (candidate['changeId'] === undefined || typeof candidate['changeId'] === 'string') &&
     (candidate['changeState'] === undefined ||
@@ -71,6 +72,7 @@ export class ChatHistory {
         changeId: stored.changeId,
         changeState: stored.changeState,
         plan: stored.plan,
+        rollback: stored.rollback,
       }));
     } catch {
       return [];
@@ -92,6 +94,7 @@ export class ChatHistory {
         changeId: message.changeId,
         changeState: message.changeState,
         plan: message.plan,
+        rollback: message.rollback,
       }));
     try {
       localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(stored));

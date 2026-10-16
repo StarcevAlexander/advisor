@@ -29,20 +29,34 @@ func NewGitHub(config GitHubConfig) *GitHub {
 	return &GitHub{config: config}
 }
 
+var (
+	changeWorkflow   = trackedWorkflow{file: WorkflowFile, runPrefix: RunTitlePrefix, branchPrefix: BranchPrefix}
+	rollbackWorkflow = trackedWorkflow{file: RollbackWorkflow, runPrefix: RollbackRunPrefix, branchPrefix: RollbackBranchHead}
+)
+
 func (g *GitHub) Request(ctx context.Context, text string) (Receipt, error) {
 	id, err := newID()
 	if err != nil {
 		return Receipt{}, err
 	}
-	payload, err := json.Marshal(dispatchBody{
-		Ref:    g.config.Branch,
-		Inputs: dispatchInputs{Request: text, ID: id},
-	})
+	return g.dispatch(ctx, changeWorkflow, id, dispatchInputs{Request: text, ID: id})
+}
+
+func (g *GitHub) Rollback(ctx context.Context) (Receipt, error) {
+	id, err := newID()
+	if err != nil {
+		return Receipt{}, err
+	}
+	return g.dispatch(ctx, rollbackWorkflow, id, rollbackInputs{ID: id})
+}
+
+func (g *GitHub) dispatch(ctx context.Context, workflow trackedWorkflow, id string, inputs any) (Receipt, error) {
+	payload, err := json.Marshal(dispatchBody{Ref: g.config.Branch, Inputs: inputs})
 	if err != nil {
 		return Receipt{}, fmt.Errorf("encode dispatch: %w", err)
 	}
 
-	url := fmt.Sprintf(DispatchPathFormat, g.config.BaseURL, g.config.Repo, WorkflowFile)
+	url := fmt.Sprintf(DispatchPathFormat, g.config.BaseURL, g.config.Repo, workflow.file)
 	request, err := g.newRequest(ctx, http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
 		return Receipt{}, err
@@ -62,17 +76,25 @@ func (g *GitHub) Request(ctx context.Context, text string) (Receipt, error) {
 }
 
 func (g *GitHub) Status(ctx context.Context, id string) (Status, error) {
+	return g.status(ctx, changeWorkflow, id)
+}
+
+func (g *GitHub) RollbackStatus(ctx context.Context, id string) (Status, error) {
+	return g.status(ctx, rollbackWorkflow, id)
+}
+
+func (g *GitHub) status(ctx context.Context, workflow trackedWorkflow, id string) (Status, error) {
 	if !ValidID(id) {
 		return Status{}, ErrInvalidID
 	}
 
 	var runs workflowRunsResponse
-	runsURL := fmt.Sprintf(RunsPathFormat, g.config.BaseURL, g.config.Repo, WorkflowFile)
+	runsURL := fmt.Sprintf(RunsPathFormat, g.config.BaseURL, g.config.Repo, workflow.file)
 	if err := g.getJSON(ctx, runsURL, &runs); err != nil {
 		return Status{}, err
 	}
 
-	run := findRun(runs.WorkflowRuns, id)
+	run := findRun(runs.WorkflowRuns, workflow.runPrefix+id)
 	status, finishedOK := statusFromRun(run)
 	if !finishedOK {
 		return status, nil
@@ -80,15 +102,14 @@ func (g *GitHub) Status(ctx context.Context, id string) (Status, error) {
 
 	owner, _, _ := strings.Cut(g.config.Repo, "/")
 	var pulls []pullRequest
-	pullsURL := fmt.Sprintf(PullsPathFormat, g.config.BaseURL, g.config.Repo, owner, BranchPrefix+id)
+	pullsURL := fmt.Sprintf(PullsPathFormat, g.config.BaseURL, g.config.Repo, owner, workflow.branchPrefix+id)
 	if err := g.getJSON(ctx, pullsURL, &pulls); err != nil {
 		return Status{}, err
 	}
 	return statusFromPull(status, pulls), nil
 }
 
-func findRun(runs []workflowRun, id string) *workflowRun {
-	title := RunTitlePrefix + id
+func findRun(runs []workflowRun, title string) *workflowRun {
 	for i := range runs {
 		if runs[i].DisplayTitle == title {
 			return &runs[i]

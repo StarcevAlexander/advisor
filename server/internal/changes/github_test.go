@@ -14,7 +14,10 @@ import (
 
 func TestGitHubRequest(t *testing.T) {
 	var gotPath, gotAuth, gotVersion string
-	var gotBody dispatchBody
+	var gotBody struct {
+		Ref    string         `json:"ref"`
+		Inputs dispatchInputs `json:"inputs"`
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
 		gotAuth = r.Header.Get("Authorization")
@@ -199,5 +202,116 @@ func TestNewIDIsValidAndUnique(t *testing.T) {
 
 	if !ValidID(first) || first == second {
 		t.Errorf("ids: %q %q", first, second)
+	}
+}
+
+func TestGitHubRollback(t *testing.T) {
+	var gotPath string
+	var gotBody struct {
+		Ref    string         `json:"ref"`
+		Inputs map[string]any `json:"inputs"`
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		body, _ := io.ReadAll(r.Body)
+		if err := json.Unmarshal(body, &gotBody); err != nil {
+			t.Errorf("decode: %v", err)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(server.Close)
+
+	github := NewGitHub(GitHubConfig{Token: "tok", Repo: "me/app", Branch: "main", BaseURL: server.URL})
+	receipt, err := github.Rollback(context.Background())
+	if err != nil {
+		t.Fatalf("Rollback: %v", err)
+	}
+
+	if gotPath != "/repos/me/app/actions/workflows/claude-rollback.yml/dispatches" {
+		t.Errorf("path = %q", gotPath)
+	}
+	if gotBody.Ref != "main" || len(gotBody.Inputs) != 1 || gotBody.Inputs["id"] != receipt.ID {
+		t.Errorf("body = %+v, receipt id = %q", gotBody, receipt.ID)
+	}
+	if !ValidID(receipt.ID) {
+		t.Errorf("receipt id = %q", receipt.ID)
+	}
+}
+
+func TestGitHubRollbackRejected(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(server.Close)
+
+	github := NewGitHub(GitHubConfig{Token: "tok", BaseURL: server.URL})
+	_, err := github.Rollback(context.Background())
+
+	if !errors.Is(err, ErrDispatchRejected) {
+		t.Fatalf("err = %v, want ErrDispatchRejected", err)
+	}
+}
+
+func TestGitHubRollbackStatusLooksAtTheRollbackWorkflow(t *testing.T) {
+	var runsPath, pullsHead string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/runs"):
+			runsPath = r.URL.Path
+			_, _ = w.Write([]byte(runsJSON(RollbackRunPrefix+testID, "completed", "success")))
+		case strings.HasSuffix(r.URL.Path, "/pulls"):
+			pullsHead = r.URL.Query().Get("head")
+			_, _ = w.Write([]byte(`[{"number":9,"html_url":"https://pr/9","state":"closed","merged_at":"2026-10-16T10:00:00Z"}]`))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	github := NewGitHub(GitHubConfig{Token: "tok", Repo: "me/app", BaseURL: server.URL})
+	status, err := github.RollbackStatus(context.Background(), testID)
+	if err != nil {
+		t.Fatalf("RollbackStatus: %v", err)
+	}
+
+	if runsPath != "/repos/me/app/actions/workflows/claude-rollback.yml/runs" {
+		t.Errorf("runs path = %q", runsPath)
+	}
+	if pullsHead != "me:claude/rollback-"+testID {
+		t.Errorf("head = %q", pullsHead)
+	}
+	if status.State != StateMerged || status.PullNumber != 9 {
+		t.Errorf("status = %+v", status)
+	}
+}
+
+func TestGitHubRollbackStatusWithoutPullMeansNothingToRollBack(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/runs") {
+			_, _ = w.Write([]byte(runsJSON(RollbackRunPrefix+testID, "completed", "success")))
+			return
+		}
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	t.Cleanup(server.Close)
+
+	github := NewGitHub(GitHubConfig{Token: "tok", BaseURL: server.URL})
+	status, err := github.RollbackStatus(context.Background(), testID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if status.State != StateNoChange {
+		t.Errorf("state = %q, want %q", status.State, StateNoChange)
+	}
+}
+
+func TestGitHubRollbackStatusRejectsBadID(t *testing.T) {
+	github := NewGitHub(GitHubConfig{Token: "tok"})
+
+	_, err := github.RollbackStatus(context.Background(), "nope")
+
+	if !errors.Is(err, ErrInvalidID) {
+		t.Fatalf("err = %v, want ErrInvalidID", err)
 	}
 }

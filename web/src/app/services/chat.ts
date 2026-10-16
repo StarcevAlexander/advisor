@@ -14,6 +14,7 @@ import {
   CHANGE_RUN_LINK_LABEL,
   CHANGE_STATE_TEXT,
   CHANGE_TRACKED_STATES,
+  ROLLBACK_STATE_TEXT,
   MAX_HISTORY_TURNS,
   WELCOME_TEXT,
 } from '../constants';
@@ -54,7 +55,12 @@ export class Chat {
     const ids = new Set<string>();
     messages.forEach((message, index) => {
       const reply = messages[index + 1];
-      if (message.role === 'user' && reply?.role === 'assistant' && reply.failed) {
+      if (
+        message.role === 'user' &&
+        reply?.role === 'assistant' &&
+        reply.failed &&
+        !reply.rollback
+      ) {
         ids.add(message.id);
       }
     });
@@ -115,6 +121,15 @@ export class Chat {
       { text: request.text, attachments: request.attachments },
       history,
     );
+  }
+
+  rollback(): void {
+    if (this.busy()) {
+      return;
+    }
+    const pendingId = this.appendPending(true);
+    this.updateMessage(pendingId, { rollback: true });
+    void this.requestRollback(pendingId);
   }
 
   toggleStep(messageId: string, stepId: string): void {
@@ -276,6 +291,24 @@ export class Chat {
     }
   }
 
+  private async requestRollback(pendingId: string): Promise<void> {
+    try {
+      const reply = await this.api.requestRollback();
+      this.updateMessage(pendingId, {
+        text: ROLLBACK_STATE_TEXT.queued,
+        pending: false,
+        failed: false,
+        link: reply.url,
+        linkLabel: CHANGE_LIST_LINK_LABEL,
+        changeId: reply.id,
+        changeState: 'queued',
+      });
+      this.scheduleChangePoll(pendingId, CHANGE_FIRST_POLL_DELAY_MS);
+    } catch (error) {
+      this.failPending(pendingId, error);
+    }
+  }
+
   private scheduleChangePoll(messageId: string, delayMs: number): void {
     setTimeout(() => void this.pollChange(messageId), delayMs);
   }
@@ -292,7 +325,9 @@ export class Chat {
 
     if (this.access.granted()) {
       try {
-        const status = await this.api.changeStatus(message.changeId);
+        const status = message.rollback
+          ? await this.api.rollbackStatus(message.changeId)
+          : await this.api.changeStatus(message.changeId);
         this.applyChangeStatus(messageId, status);
       } catch (error) {
         if (error instanceof ChatApiError && error.unauthorized) {
@@ -310,7 +345,7 @@ export class Chat {
   private applyChangeStatus(messageId: string, status: ChangeStatus): void {
     const hasPull = status.pullUrl !== undefined;
     const patch: Partial<ChatMessage> = {
-      text: CHANGE_STATE_TEXT[status.state],
+      text: this.stateText(messageId, status.state),
       changeState: status.state,
     };
     if (hasPull) {
@@ -324,7 +359,14 @@ export class Chat {
   }
 
   private applyChangeState(messageId: string, state: ChangeState): void {
-    this.updateMessage(messageId, { text: CHANGE_STATE_TEXT[state], changeState: state });
+    this.updateMessage(messageId, { text: this.stateText(messageId, state), changeState: state });
+  }
+
+  private stateText(messageId: string, state: ChangeState): string {
+    if (this.findMessage(messageId)?.rollback && state !== 'plan' && state !== 'cancelled') {
+      return ROLLBACK_STATE_TEXT[state];
+    }
+    return CHANGE_STATE_TEXT[state];
   }
 
   private isTracked(message: ChatMessage): boolean {

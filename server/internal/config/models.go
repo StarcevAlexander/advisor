@@ -9,4 +9,5 @@ type Config struct {
 	GitHubToken    string
 	GitHubRepo     string
 	GitHubBranch   string
+	GitHubAPIURL   string
 }

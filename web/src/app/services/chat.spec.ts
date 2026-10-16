@@ -7,6 +7,7 @@ import {
   API_CHAT_PATH,
   API_DEV_URL,
   API_MESSAGES,
+  API_ROLLBACK_PATH,
   CHANGE_ACTIVE_LIMIT_MS,
   CHANGE_ACTIVE_POLL_INTERVAL_MS,
   CHANGE_FIRST_POLL_DELAY_MS,
@@ -14,6 +15,7 @@ import {
   CHANGE_RUN_LINK_LABEL,
   CHANGE_STATE_TEXT,
   CHAT_HISTORY_STORAGE_KEY,
+  ROLLBACK_STATE_TEXT,
 } from '../constants';
 import { Access } from './access';
 import { Chat } from './chat';
@@ -475,6 +477,142 @@ describe('Chat', () => {
 
       expect(chat.messages()[2].failed).toBe(true);
       expect(chat.messages()[2].text).toBe('Правка приложения не настроена на сервере');
+    });
+  });
+
+  describe('rollback', () => {
+    const rollbackId = '0123456789ab';
+    const rollbackUrl = `${API_DEV_URL}${API_ROLLBACK_PATH}`;
+    const statusUrl = `${rollbackUrl}/${rollbackId}`;
+    const changeStatusUrl = `${API_DEV_URL}${API_CHANGE_PATH}/${rollbackId}`;
+
+    async function startRollback(): Promise<void> {
+      chat.rollback();
+      http
+        .expectOne(rollbackUrl)
+        .flush({ id: rollbackId, message: 'ok', url: 'https://x.test/pulls' });
+      await vi.advanceTimersByTimeAsync(0);
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('queues the rollback as a tracked message', async () => {
+      chat.rollback();
+      expect(chat.busy()).toBe(true);
+      expect(chat.messages()[1].pending).toBe(true);
+      expect(chat.messages()[1].rollback).toBe(true);
+
+      const request = http.expectOne(rollbackUrl);
+      expect(request.request.method).toBe('POST');
+      expect(request.request.headers.get('Authorization')).toBe('Bearer secret-pass');
+      request.flush({ id: rollbackId, message: 'ok', url: 'https://x.test/pulls' });
+      await vi.advanceTimersByTimeAsync(0);
+
+      const message = chat.messages()[1];
+      expect(chat.busy()).toBe(false);
+      expect(message.pending).toBe(false);
+      expect(message.changeId).toBe(rollbackId);
+      expect(message.changeState).toBe('queued');
+      expect(message.text).toBe(ROLLBACK_STATE_TEXT.queued);
+    });
+
+    it('follows the rollback through its own status endpoint with rollback texts', async () => {
+      await startRollback();
+
+      await vi.advanceTimersByTimeAsync(CHANGE_FIRST_POLL_DELAY_MS);
+      http.expectNone(changeStatusUrl);
+      http.expectOne(statusUrl).flush({ state: 'working' });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(chat.messages()[1].text).toBe(ROLLBACK_STATE_TEXT.working);
+
+      await vi.advanceTimersByTimeAsync(CHANGE_ACTIVE_POLL_INTERVAL_MS);
+      http.expectOne(statusUrl).flush({ state: 'merged', pullUrl: 'https://pr/9', pullNumber: 9 });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(chat.messages()[1].changeState).toBe('merged');
+      expect(chat.messages()[1].text).toBe(ROLLBACK_STATE_TEXT.merged);
+      expect(chat.messages()[1].linkLabel).toBe('Открыть pull request №9');
+
+      await vi.advanceTimersByTimeAsync(CHANGE_REVIEW_POLL_INTERVAL_MS * 3);
+      http.expectNone(statusUrl);
+    });
+
+    it('says there is nothing to roll back when the run changed nothing', async () => {
+      await startRollback();
+
+      await vi.advanceTimersByTimeAsync(CHANGE_FIRST_POLL_DELAY_MS);
+      http.expectOne(statusUrl).flush({ state: 'nochange' });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(chat.messages()[1].text).toBe(ROLLBACK_STATE_TEXT.nochange);
+    });
+
+    it('uses rollback wording when the tracking gives up', async () => {
+      await startRollback();
+
+      await vi.advanceTimersByTimeAsync(CHANGE_ACTIVE_LIMIT_MS + 1);
+      http.expectOne(statusUrl).flush({ state: 'working' });
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(CHANGE_ACTIVE_POLL_INTERVAL_MS);
+
+      expect(chat.messages()[1].changeState).toBe('unknown');
+      expect(chat.messages()[1].text).toBe(ROLLBACK_STATE_TEXT.unknown);
+    });
+
+    it('shows the server error and does not offer a retry of the previous message', async () => {
+      vi.useRealTimers();
+      chat.send({ text: 'Привет', attachments: [] });
+      http.expectOne(`${API_DEV_URL}${API_CHAT_PATH}`).flush({ reply: 'Здравствуйте' });
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+      chat.remove(chat.messages()[2].id);
+
+      chat.rollback();
+      http
+        .expectOne(rollbackUrl)
+        .flush(
+          { error: 'Правка приложения не настроена на сервере' },
+          { status: 501, statusText: 'x' },
+        );
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+
+      const failed = chat.messages()[chat.messages().length - 1];
+      expect(failed.failed).toBe(true);
+      expect(failed.text).toBe('Правка приложения не настроена на сервере');
+      expect(chat.retryableIds().size).toBe(0);
+    });
+
+    it('does nothing while another request is pending', () => {
+      chat.send({ text: 'Привет', attachments: [] });
+
+      chat.rollback();
+
+      http.expectNone(rollbackUrl);
+      http.expectOne(`${API_DEV_URL}${API_CHAT_PATH}`).flush({ reply: 'Ок' });
+    });
+
+    it('keeps tracking a rollback after the page is reopened', async () => {
+      await startRollback();
+      TestBed.tick();
+
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [provideHttpClient(), provideHttpClientTesting()],
+      });
+      const restored = TestBed.inject(Chat);
+      const restoredHttp = TestBed.inject(HttpTestingController);
+      TestBed.inject(Access).save('secret-pass');
+
+      expect(restored.messages()[1].rollback).toBe(true);
+      await vi.advanceTimersByTimeAsync(CHANGE_FIRST_POLL_DELAY_MS);
+      restoredHttp.expectOne(statusUrl).flush({ state: 'merged' });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(restored.messages()[1].text).toBe(ROLLBACK_STATE_TEXT.merged);
     });
   });
 

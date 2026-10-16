@@ -76,4 +76,12 @@
   </footer>
 </div>
 
-<app-settings-panel [(open)]="settingsOpen" />
+<app-settings-panel [(open)]="settingsOpen" (rollbackRequested)="onRollbackRequested()" />
+
+<app-confirm-dialog
+  [(open)]="rollbackConfirmOpen"
+  [title]="rollbackTitle"
+  [message]="rollbackText"
+  [confirmLabel]="rollbackConfirmLabel"
+  (confirmed)="chat.rollback()"
+/>

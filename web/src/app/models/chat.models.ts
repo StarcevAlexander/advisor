@@ -23,6 +23,7 @@ export interface ChatMessage {
   changeId?: string;
   changeState?: ChangeState;
   plan?: ChangePlan;
+  rollback?: boolean;
 }
 
 export type ChatMode = 'ask' | 'edit';
@@ -62,6 +63,7 @@ export interface StoredMessage {
   changeId?: string;
   changeState?: ChangeState;
   plan?: ChangePlan;
+  rollback?: boolean;
 }
 
 export interface ComposerPayload {

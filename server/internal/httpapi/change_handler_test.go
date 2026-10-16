@@ -14,10 +14,21 @@ import (
 )
 
 type fakeRequester struct {
-	err    error
-	texts  []string
-	status changes.Status
-	ids    []string
+	err       error
+	texts     []string
+	status    changes.Status
+	ids       []string
+	rollbacks int
+}
+
+func (f *fakeRequester) Rollback(_ context.Context) (changes.Receipt, error) {
+	f.rollbacks++
+	return changes.Receipt{ID: "0123456789ab", PullsURL: "https://github.com/me/app/pulls"}, f.err
+}
+
+func (f *fakeRequester) RollbackStatus(_ context.Context, id string) (changes.Status, error) {
+	f.ids = append(f.ids, id)
+	return f.status, f.err
 }
 
 func (f *fakeRequester) Request(_ context.Context, text string) (changes.Receipt, error) {

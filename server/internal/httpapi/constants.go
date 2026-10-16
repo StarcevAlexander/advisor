@@ -10,13 +10,16 @@ const (
 const HealthPath = "/healthz"
 
 const (
-	ChangeRoute                 = "POST /api/change"
-	ChangeStatusRoute           = "GET /api/change/{id}"
-	ChangePlanRoute             = "POST /api/change/plan"
-	MaxChangeBodyBytes    int64 = 16 << 10
-	MaxPlanBodyBytes      int64 = 128 << 10
-	MaxChangeRequestRunes       = 2000
-	ChangeAcceptedMessage       = "Заявка принята. Claude подготовит изменение за несколько минут. Когда оно появится в списке, проверьте и примите его."
+	ChangeRoute                   = "POST /api/change"
+	ChangeStatusRoute             = "GET /api/change/{id}"
+	ChangePlanRoute               = "POST /api/change/plan"
+	RollbackRoute                 = "POST /api/rollback"
+	RollbackStatusRoute           = "GET /api/rollback/{id}"
+	MaxChangeBodyBytes      int64 = 16 << 10
+	MaxPlanBodyBytes        int64 = 128 << 10
+	MaxChangeRequestRunes         = 2000
+	RollbackAcceptedMessage       = "Откат принят. Он вернёт последнюю правку Claude и выложит результат за пару минут."
+	ChangeAcceptedMessage         = "Заявка принята. Claude подготовит изменение за несколько минут. Когда оно появится в списке, проверьте и примите его."
 )
 
 const (
@@ -50,5 +53,6 @@ const (
 	MsgBadChangeID     = "Неверный номер заявки"
 	MsgStatusFailed    = "Не удалось узнать статус заявки"
 	MsgPlanFailed      = "Не удалось обдумать правку, попробуйте ещё раз"
+	MsgRollbackFailed  = "Не удалось запустить откат, попробуйте ещё раз"
 	MsgChangeFailed    = "Не удалось отправить заявку на изменение, попробуйте ещё раз"
 )

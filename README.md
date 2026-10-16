@@ -34,6 +34,8 @@ API: `POST /api/chat` (multipart: `text`, `history` как JSON `[{role,text}]`,
 2. Разрешить Actions создавать pull request: `gh api -X PUT repos/StarcevAlexander/advisor/actions/permissions/workflow -f default_workflow_permissions=read -F can_approve_pull_request_reviews=true`.
 3. На GitHub создать fine-grained токен только для репозитория `advisor` с правом Actions: Read and write и записать его в переменную `GITHUB_TOKEN` сервера на Render. Необязательные переменные: `GITHUB_REPO` (по умолчанию `StarcevAlexander/advisor`), `GITHUB_BRANCH` (по умолчанию `master`).
 
+Откат правки: в настройках (шестерёнка) пункт «Откатить последнюю правку» с окном подтверждения. Он вызывает `POST /api/rollback`, сервер запускает workflow `.github/workflows/claude-rollback.yml`. Workflow берёт последний принятый pull request из ветки `claude/change-*`, который ещё не откатывали (откаты помечены в описании строкой `Откат заявки №N`), делает `git revert`, прогоняет тесты и сборку, сливает откат (ветка `claude/rollback-<id>`, имя запуска `Claude rollback <id>`) и запускает публикацию. Ход отката виден в чате (`GET /api/rollback/{id}`). Если после той правки менялись те же места, откат не применится чисто: запуск завершится ошибкой и ничего не изменит. Для проверки без настоящего GitHub у сервера есть необязательная переменная `GITHUB_API_URL` (по умолчанию `https://api.github.com`).
+
 После Merge версия в шапке не растёт (хук версии работает только на локальных коммитах), но обновление приложения подтягивается, потому что service worker сравнивает содержимое файлов.
 
 ## Команды (из `web/`)

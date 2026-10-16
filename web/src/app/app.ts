@@ -12,11 +12,15 @@ import {
 } from '@angular/core';
 import { AccessGate } from './components/access-gate/access-gate';
 import { Composer } from './components/composer/composer';
+import { ConfirmDialog } from './components/confirm-dialog/confirm-dialog';
 import { MessageBubble } from './components/message-bubble/message-bubble';
 import { SettingsPanel } from './components/settings-panel/settings-panel';
 import {
   CLEAR_CONFIRM_TIMEOUT_MS,
   HISTORY_CONTEXT_LABEL,
+  ROLLBACK_CONFIRM_LABEL,
+  ROLLBACK_CONFIRM_TEXT,
+  ROLLBACK_CONFIRM_TITLE,
   SETTINGS_OPEN_LABEL,
   UPDATE_BUTTON_LABEL,
 } from './constants';
@@ -29,7 +33,7 @@ import { Speech } from './services/speech';
 import { APP_VERSION } from './version';
 
 @Component({
-  imports: [AccessGate, Composer, MessageBubble, SettingsPanel],
+  imports: [AccessGate, Composer, ConfirmDialog, MessageBubble, SettingsPanel],
   selector: 'app-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',
@@ -47,6 +51,10 @@ export class App {
   protected readonly composing = signal(false);
   protected readonly confirmingClear = signal(false);
   protected readonly settingsOpen = signal(false);
+  protected readonly rollbackConfirmOpen = signal(false);
+  protected readonly rollbackTitle = ROLLBACK_CONFIRM_TITLE;
+  protected readonly rollbackText = ROLLBACK_CONFIRM_TEXT;
+  protected readonly rollbackConfirmLabel = ROLLBACK_CONFIRM_LABEL;
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly log = viewChild.required<ElementRef<HTMLElement>>('log');
@@ -112,6 +120,11 @@ export class App {
     this.speech.stopSpeaking();
     this.chat.clear();
     this.confirmingClear.set(false);
+  }
+
+  protected onRollbackRequested(): void {
+    this.settingsOpen.set(false);
+    this.rollbackConfirmOpen.set(true);
   }
 
   protected onDeleteRequested(id: string): void {

@@ -8,6 +8,7 @@ import {
   API_DEV_URL,
   API_MESSAGES,
   API_PRODUCTION_URL,
+  API_ROLLBACK_PATH,
   HTTP_OFFLINE,
   HTTP_UNAUTHORIZED,
 } from '../constants';
@@ -50,6 +51,14 @@ export class ChatApi {
 
   changeStatus(id: string): Promise<ChangeStatus> {
     return this.send<ChangeStatus>('GET', `${API_CHANGE_PATH}/${encodeURIComponent(id)}`);
+  }
+
+  requestRollback(): Promise<ChangeReply> {
+    return this.send<ChangeReply>('POST', API_ROLLBACK_PATH);
+  }
+
+  rollbackStatus(id: string): Promise<ChangeStatus> {
+    return this.send<ChangeStatus>('GET', `${API_ROLLBACK_PATH}/${encodeURIComponent(id)}`);
   }
 
   private async send<T>(

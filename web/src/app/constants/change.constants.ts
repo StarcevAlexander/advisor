@@ -35,7 +35,34 @@ export const CHANGE_STATE_TEXT = {
   unknown: 'Статус заявки неизвестен. Проверьте список заявок на GitHub.',
 } as const satisfies Record<ChangeState, string>;
 
+export const ROLLBACK_STATE_TEXT = {
+  queued: 'Откат принят и ждёт очереди…',
+  working: 'Откат выполняется. Обычно это 1–3 минуты…',
+  ready: 'Откат готов, но сам не принялся. Откройте его на GitHub и нажмите Merge.',
+  draft:
+    'Откат подготовлен, но тесты после него не прошли. Откройте и посмотрите, принимать его не стоит.',
+  merged:
+    'Последняя правка откачена и публикуется. Через пару минут в шапке появится кнопка «Обновить».',
+  closed: 'Откат закрыт без принятия: приложение не изменилось.',
+  failed:
+    'Откат не удался: чаще всего позже были другие правки, которые зависят от этой. Откройте журнал запуска.',
+  nochange: 'Откатывать нечего: принятых правок Claude не осталось.',
+  unknown: 'Статус отката неизвестен. Проверьте список заявок на GitHub.',
+} as const satisfies Record<Exclude<ChangeState, 'plan' | 'cancelled'>, string>;
+
 export const CHANGE_STATES = Object.keys(CHANGE_STATE_TEXT) as ChangeState[];
+
+export const ROLLBACK_MENU_LABEL = 'Откатить последнюю правку';
+
+export const ROLLBACK_MENU_HINT =
+  'Вернёт приложение к виду до последней правки, которую сделал Claude.';
+
+export const ROLLBACK_CONFIRM_TITLE = 'Откатить последнюю правку?';
+
+export const ROLLBACK_CONFIRM_TEXT =
+  'Claude вернёт приложение к состоянию до последней принятой правки и выложит результат, это займёт пару минут. Если после той правки менялись те же места, откат может не получиться: тогда ничего не изменится.';
+
+export const ROLLBACK_CONFIRM_LABEL = 'Откатить';
 
 export const CHANGE_LIST_LINK_LABEL = 'Открыть заявки на GitHub';
 
