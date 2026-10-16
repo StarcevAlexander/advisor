@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "scripts": {
     "ng": "ng",
     "prepare": "node scripts/setup-hooks.mjs",

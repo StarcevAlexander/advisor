@@ -360,6 +360,35 @@ describe('Chat', () => {
       expect(reply.failed).toBe(false);
     });
 
+    it('closes the plan once its request is sent so it cannot be sent twice', async () => {
+      const id = await proposeIdea();
+
+      chat.confirmChange(id);
+      http
+        .expectOne(changeUrl)
+        .flush({ id: '0123456789ab', message: 'ok', url: 'https://github.com/me/app/pulls' });
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+
+      expect(chat.messages()[2].changeState).toBeUndefined();
+      expect(chat.messages()[2].plan?.steps.length).toBe(2);
+      chat.confirmChange(id);
+      http.expectNone(changeUrl);
+    });
+
+    it('keeps the plan open when sending the request fails', async () => {
+      const id = await proposeIdea();
+
+      chat.confirmChange(id);
+      http.expectOne(changeUrl).flush({ error: 'boom' }, { status: 502, statusText: 'x' });
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+
+      expect(chat.messages()[2].changeState).toBe('plan');
+      expect(chat.messages()[3].failed).toBe(true);
+      chat.confirmChange(id);
+      http.expectOne(changeUrl).flush({ error: 'boom' }, { status: 502, statusText: 'x' });
+      await vi.waitFor(() => expect(chat.busy()).toBe(false));
+    });
+
     it('does not send when no step is approved', async () => {
       const id = await proposeIdea();
       chat.messages()[2].plan?.steps.forEach((step) => chat.toggleStep(id, step.id));

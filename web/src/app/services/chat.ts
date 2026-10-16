@@ -158,7 +158,7 @@ export class Chat {
       return;
     }
     const pendingId = this.appendPending(true);
-    void this.requestChange(pendingId, request);
+    void this.requestChange(pendingId, id, request);
   }
 
   cancelChange(id: string): void {
@@ -273,9 +273,10 @@ export class Chat {
     return `${head}${tail}`;
   }
 
-  private async requestChange(pendingId: string, request: string): Promise<void> {
+  private async requestChange(pendingId: string, planId: string, request: string): Promise<void> {
     try {
       const reply = await this.api.requestChange(request);
+      this.updateMessage(planId, { changeState: undefined });
       this.updateMessage(pendingId, {
         text: CHANGE_STATE_TEXT.queued,
         pending: false,
