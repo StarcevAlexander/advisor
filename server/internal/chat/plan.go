@@ -37,15 +37,9 @@ func (c *Claude) Plan(ctx context.Context, request string, history []Turn) (Plan
 }
 
 func parsePlan(raw string) (Plan, error) {
-	start := strings.Index(raw, "{")
-	end := strings.LastIndex(raw, "}")
-	if start < 0 || end <= start {
+	plan, found := lastPlanObject(raw)
+	if !found {
 		return Plan{}, ErrBadPlan
-	}
-
-	var plan Plan
-	if err := json.Unmarshal([]byte(raw[start:end+1]), &plan); err != nil {
-		return Plan{}, fmt.Errorf("%w: %v", ErrBadPlan, err)
 	}
 
 	plan.Summary = truncateRunes(strings.TrimSpace(plan.Summary), MaxPlanSummaryRunes)
@@ -66,6 +60,27 @@ func parsePlan(raw string) (Plan, error) {
 	}
 	plan.Steps = steps
 	return plan, nil
+}
+
+func lastPlanObject(raw string) (Plan, bool) {
+	var plan Plan
+	found := false
+	for offset := 0; offset < len(raw); {
+		start := strings.IndexByte(raw[offset:], '{')
+		if start < 0 {
+			break
+		}
+		start += offset
+		decoder := json.NewDecoder(strings.NewReader(raw[start:]))
+		var candidate Plan
+		if err := decoder.Decode(&candidate); err == nil && strings.TrimSpace(candidate.Summary) != "" {
+			plan, found = candidate, true
+			offset = start + int(decoder.InputOffset())
+			continue
+		}
+		offset = start + 1
+	}
+	return plan, found
 }
 
 func truncateRunes(text string, limit int) string {

@@ -18,6 +18,9 @@ func TestParsePlan(t *testing.T) {
 		{name: "no steps is a question", raw: `{"summary":"Уточните, что именно","steps":[]}`, wantSteps: 0},
 		{name: "blank steps dropped", raw: `{"summary":"Ок","steps":["  ","Один"]}`, wantSteps: 1},
 		{name: "steps capped", raw: `{"summary":"Ок","steps":["1","2","3","4","5","6","7","8"]}`, wantSteps: MaxPlanSteps},
+		{name: "text around json", raw: "Вот план:\n{\"summary\":\"Сделаю\",\"steps\":[\"Один\"]}\nГотово.", wantSteps: 1},
+		{name: "braces in trailing text", raw: "{\"summary\":\"Сделаю\",\"steps\":[\"Один\"]}\n\nСмотри {это} слово", wantSteps: 1},
+		{name: "extra fields ignored", raw: `{"summary":"Ок","steps":[],"questions":null}`, wantSteps: 0},
 		{name: "no json", raw: "просто текст", wantErr: true},
 		{name: "empty summary", raw: `{"summary":" ","steps":["Один"]}`, wantErr: true},
 		{name: "broken json", raw: `{"summary":`, wantErr: true},
@@ -41,6 +44,30 @@ func TestParsePlan(t *testing.T) {
 				t.Error("steps must be an empty list, not nil")
 			}
 		})
+	}
+}
+
+func TestParsePlanTakesTheLastObjectWhenModelCorrectsItself(t *testing.T) {
+	raw := "{\"summary\":\"Первый\",\"steps\":[],\"questions\":null}\n\nПостойте, поправлю:\n\n{\"summary\":\"Второй\",\"steps\":[\"Один\"]}"
+
+	plan, err := parsePlan(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if plan.Summary != "Второй" || len(plan.Steps) != 1 {
+		t.Errorf("plan = %+v, want the second object", plan)
+	}
+}
+
+func TestParsePlanKeepsTheValidObjectWhenALaterOneIsBroken(t *testing.T) {
+	plan, err := parsePlan("{\"summary\":\"Рабочий\",\"steps\":[]}\n{\"summary\":")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if plan.Summary != "Рабочий" {
+		t.Errorf("summary = %q", plan.Summary)
 	}
 }
 
