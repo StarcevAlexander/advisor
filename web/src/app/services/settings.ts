@@ -1,7 +1,13 @@
 import { Service, effect, signal } from '@angular/core';
 import {
+  BASE_FONT_SIZE_PX,
+  DEFAULT_SCALE,
   DEFAULT_THEME,
   DEVELOPER_MODE_STORAGE_KEY,
+  MAX_SCALE,
+  MIN_SCALE,
+  SCALE_STEP,
+  SCALE_STORAGE_KEY,
   SPEAK_REPLIES_STORAGE_KEY,
   THEME_STORAGE_KEY,
   THEMES,
@@ -14,6 +20,7 @@ export class Settings {
   readonly developerMode = signal(this.restoreFlag(DEVELOPER_MODE_STORAGE_KEY));
 
   readonly theme = signal<ThemeId>(this.restoreTheme());
+  readonly scale = signal(this.restoreScale());
 
   constructor() {
     effect(() => {
@@ -24,6 +31,23 @@ export class Settings {
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color);
       }
     });
+
+    effect(() => {
+      document.documentElement.style.fontSize = `${(BASE_FONT_SIZE_PX * this.scale()) / 100}px`;
+    });
+  }
+
+  setScale(percent: number): void {
+    const clamped = Math.min(
+      MAX_SCALE,
+      Math.max(MIN_SCALE, Math.round(percent / SCALE_STEP) * SCALE_STEP),
+    );
+    this.scale.set(clamped);
+    try {
+      localStorage.setItem(SCALE_STORAGE_KEY, String(clamped));
+    } catch {
+      return;
+    }
   }
 
   setTheme(id: ThemeId): void {
@@ -68,5 +92,17 @@ export class Settings {
     } catch {
       return DEFAULT_THEME;
     }
+  }
+
+  private restoreScale(): number {
+    try {
+      const stored = Number(localStorage.getItem(SCALE_STORAGE_KEY));
+      if (Number.isFinite(stored) && stored >= MIN_SCALE && stored <= MAX_SCALE) {
+        return stored;
+      }
+    } catch {
+      return DEFAULT_SCALE;
+    }
+    return DEFAULT_SCALE;
   }
 }
