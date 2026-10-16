@@ -326,6 +326,7 @@ describe('Chat', () => {
       http.expectOne(chatUrl).flush({ reply: 'Обычный ответ' });
       await vi.waitFor(() => expect(chat.busy()).toBe(false));
       await proposeIdea();
+      expect(chat.mode()).toBe('edit');
 
       chat.send({ text: 'Пусть будет тёмно-красной', attachments: [] });
       const body = http.expectOne(planUrl).request.body as {

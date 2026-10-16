@@ -108,7 +108,7 @@ export class Chat {
       return;
     }
     const pendingId = this.appendPending(true);
-    void this.requestChange(pendingId, request, 0);
+    void this.requestChange(pendingId, request);
   }
 
   cancelChange(id: string): void {
@@ -180,10 +180,11 @@ export class Chat {
     attachmentsCount: number,
     history: ApiTurn[],
   ): Promise<void> {
+    if (attachmentsCount > 0) {
+      this.failPending(pendingId, new ChatApiError(API_MESSAGES.editNoFiles));
+      return;
+    }
     try {
-      if (attachmentsCount > 0) {
-        throw new ChatApiError(API_MESSAGES.editNoFiles);
-      }
       const reply = await this.api.planChange(request, history);
       if (reply.steps.length === 0) {
         this.updateMessage(pendingId, { text: reply.summary, pending: false, failed: false });
@@ -222,15 +223,8 @@ export class Chat {
     return `${head}${tail}`;
   }
 
-  private async requestChange(
-    pendingId: string,
-    request: string,
-    attachmentsCount: number,
-  ): Promise<void> {
+  private async requestChange(pendingId: string, request: string): Promise<void> {
     try {
-      if (attachmentsCount > 0) {
-        throw new ChatApiError(API_MESSAGES.editNoFiles);
-      }
       const reply = await this.api.requestChange(request);
       this.updateMessage(pendingId, {
         text: CHANGE_STATE_TEXT.queued,
