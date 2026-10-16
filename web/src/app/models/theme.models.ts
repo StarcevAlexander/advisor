@@ -7,4 +7,4 @@ export interface ThemeOption {
   themeColor: string;
 }
 
-export type SettingsScreen = 'main' | 'appearance' | 'theme' | 'scale';
+export type SettingsScreen = 'main' | 'appearance' | 'theme' | 'scale' | 'errors';
