@@ -87,6 +87,9 @@
       @case ('errors') {
         <app-error-log />
       }
+      @case ('requests') {
+        <app-request-log />
+      }
       @case ('scale') {
         <div class="scale">
           <output class="scale__value" for="scale-range">{{ settings.scale() }}%</output>
@@ -137,6 +140,19 @@
         </label>
         <button type="button" class="panel__item" (click)="screen.set('errors')">
           {{ errorLogTitle }}
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+            <path
+              d="M9 5l7 7-7 7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button type="button" class="panel__item" (click)="screen.set('requests')">
+          {{ requestLogTitle }}
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
             <path
               d="M9 5l7 7-7 7"

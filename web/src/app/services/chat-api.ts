@@ -11,6 +11,7 @@ import {
   API_ROLLBACK_PATH,
   HTTP_OFFLINE,
   HTTP_UNAUTHORIZED,
+  REQUEST_DESCRIPTIONS,
 } from '../constants';
 import {
   ApiErrorBody,
@@ -21,13 +22,16 @@ import {
   ChangeStatus,
   ChatApiError,
   ComposerPayload,
+  RequestDescriptor,
 } from '../models';
 import { Access } from './access';
+import { RequestLog } from './request-log';
 
 @Service()
 export class ChatApi {
   private readonly http = inject(HttpClient);
   private readonly access = inject(Access);
+  private readonly requestLog = inject(RequestLog);
 
   async ask(payload: ComposerPayload, history: ApiTurn[]): Promise<string> {
     const body = new FormData();
@@ -37,16 +41,33 @@ export class ChatApi {
       body.append('files', attachment.file, attachment.name);
     }
 
-    const response = await this.send<ApiReply>('POST', API_CHAT_PATH, body);
+    const files = payload.attachments.length;
+    const sent = [
+      payload.text,
+      files > 0 ? `Вложений: ${files}` : '',
+      `Сообщений в контексте: ${history.length}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+    const response = await this.send<ApiReply>('POST', API_CHAT_PATH, body, {
+      description: REQUEST_DESCRIPTIONS.chat,
+      sent,
+    });
     return response.reply;
   }
 
   planChange(request: string, history: ApiTurn[]): Promise<ChangePlanReply> {
-    return this.send<ChangePlanReply>('POST', API_CHANGE_PLAN_PATH, { request, history });
+    return this.send<ChangePlanReply>('POST', API_CHANGE_PLAN_PATH, { request, history }, {
+      description: REQUEST_DESCRIPTIONS.plan,
+      sent: request,
+    });
   }
 
   requestChange(request: string): Promise<ChangeReply> {
-    return this.send<ChangeReply>('POST', API_CHANGE_PATH, { request });
+    return this.send<ChangeReply>('POST', API_CHANGE_PATH, { request }, {
+      description: REQUEST_DESCRIPTIONS.change,
+      sent: request,
+    });
   }
 
   changeStatus(id: string): Promise<ChangeStatus> {
@@ -54,7 +75,10 @@ export class ChatApi {
   }
 
   requestRollback(): Promise<ChangeReply> {
-    return this.send<ChangeReply>('POST', API_ROLLBACK_PATH);
+    return this.send<ChangeReply>('POST', API_ROLLBACK_PATH, undefined, {
+      description: REQUEST_DESCRIPTIONS.rollback,
+      sent: REQUEST_DESCRIPTIONS.rollback,
+    });
   }
 
   rollbackStatus(id: string): Promise<ChangeStatus> {
@@ -65,21 +89,43 @@ export class ChatApi {
     method: 'GET' | 'POST',
     path: string,
     body?: FormData | object,
+    descriptor?: RequestDescriptor,
   ): Promise<T> {
+    const logId = descriptor ? this.requestLog.start(descriptor) : undefined;
     const baseUrl = isDevMode() ? API_DEV_URL : API_PRODUCTION_URL;
     if (!baseUrl) {
-      throw new ChatApiError(API_MESSAGES.notConfigured);
+      const failure = new ChatApiError(API_MESSAGES.notConfigured);
+      this.finishLog(logId, 'error', failure.message);
+      throw failure;
     }
 
     try {
-      return await firstValueFrom(
+      const response = await firstValueFrom(
         this.http.request<T>(method, `${baseUrl}${path}`, {
           body,
           headers: new HttpHeaders({ Authorization: `Bearer ${this.access.password()}` }),
         }),
       );
+      this.finishLog(
+        logId,
+        'success',
+        typeof response === 'string' ? response : JSON.stringify(response),
+      );
+      return response;
     } catch (error) {
-      throw this.toApiError(error);
+      const failure = this.toApiError(error);
+      this.finishLog(logId, 'error', failure.message);
+      throw failure;
+    }
+  }
+
+  private finishLog(
+    id: string | undefined,
+    status: 'success' | 'error',
+    received: string,
+  ): void {
+    if (id) {
+      this.requestLog.finish(id, status, received);
     }
   }
 
