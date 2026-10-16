@@ -9,7 +9,7 @@
         [disabled]="chat.busy() || chat.messages().length < 2"
         (click)="onClearClicked()"
       >
-        {{ confirmingClear() ? 'Точно очистить?' : 'Очистить чат' }}
+        {{ confirmingClear() ? 'Точно очистить?' : 'Очистить' }}
       </button>
       @if (appUpdate.ready()) {
         <button type="button" class="shell__update" (click)="appUpdate.apply()">
