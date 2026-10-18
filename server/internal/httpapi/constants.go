@@ -62,7 +62,7 @@ const (
 	MsgUnauthorized    = "Неверный пароль"
 	MsgBadRequest      = "Не удалось разобрать запрос"
 	MsgBadHistory      = "Не удалось разобрать историю беседы"
-	MsgEmptyMessage    = "Нужен текст или файл"
+	MsgEmptyMessage    = "Напишите текст или приложите файл"
 	MsgTooManyFiles    = "Слишком много файлов"
 	MsgTooLarge        = "Файлы слишком большие"
 	MsgUnsupportedFile = "Этот тип файла не поддерживается"
