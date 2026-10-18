@@ -32,12 +32,14 @@ import {
 } from '../models';
 import { Access } from './access';
 import { ChatApi } from './chat-api';
+import { Conversation } from './conversation';
 import { ChatHistory } from './chat-history';
 import { Settings } from './settings';
 
 @Service()
 export class Chat {
   private readonly api = inject(ChatApi);
+  private readonly conversation = inject(Conversation);
   private readonly access = inject(Access);
   private readonly history = inject(ChatHistory);
   private readonly settings = inject(Settings);
@@ -80,6 +82,7 @@ export class Chat {
     }
     this.messages().forEach((message) => this.revokePreviews(message));
     this.messages.set([this.createWelcomeMessage()]);
+    this.conversation.reset();
   }
 
   send(payload: ComposerPayload): void {

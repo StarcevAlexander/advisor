@@ -15,6 +15,7 @@ import (
 	"advisor/server/internal/chat"
 	"advisor/server/internal/config"
 	"advisor/server/internal/httpapi"
+	"advisor/server/internal/store"
 )
 
 const (
@@ -23,6 +24,8 @@ const (
 	writeTimeout      = 150 * time.Second
 	idleTimeout       = 120 * time.Second
 	shutdownTimeout   = 10 * time.Second
+
+	databaseOpenTimeout = 20 * time.Second
 )
 
 func main() {
@@ -41,6 +44,23 @@ func run() error {
 		return fmt.Errorf("config: %w", err)
 	}
 
+	logger := slog.Default()
+	var history store.Store = store.Noop{}
+	if cfg.DatabaseURL != "" {
+		openCtx, cancel := context.WithTimeout(context.Background(), databaseOpenTimeout)
+		postgres, err := store.Open(openCtx, cfg.DatabaseURL, logger)
+		cancel()
+		if err != nil {
+			return fmt.Errorf("store: %w", err)
+		}
+		history = postgres
+		logger = slog.New(store.NewErrorHandler(slog.NewTextHandler(os.Stderr, nil), history))
+		slog.SetDefault(logger)
+	} else {
+		slog.Warn("DATABASE_URL is not set, history and error log are not stored")
+	}
+	defer history.Close()
+
 	var changeRequester changes.Requester
 	if cfg.GitHubToken != "" {
 		changeRequester = changes.NewGitHub(changes.GitHubConfig{
@@ -58,7 +78,8 @@ func run() error {
 		Changes:        changeRequester,
 		Password:       cfg.AccessPassword,
 		AllowedOrigins: cfg.AllowedOrigins,
-		Logger:         slog.Default(),
+		Store:          history,
+		Logger:         logger,
 	})
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,

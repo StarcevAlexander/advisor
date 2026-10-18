@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"time"
@@ -50,6 +51,22 @@ func withLogging(logger *slog.Logger, next http.Handler) http.Handler {
 			slog.Int64("bytes", r.ContentLength),
 			slog.Duration("took", time.Since(started).Round(time.Millisecond)),
 		)
+	})
+}
+
+func withRecover(logger *slog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				logger.Error("panic in handler",
+					slog.String("path", r.URL.Path),
+					slog.Any("panic", recovered),
+					slog.String("stack", string(debug.Stack())),
+				)
+				writeError(w, http.StatusInternalServerError, MsgUpstreamFailed)
+			}
+		}()
+		next.ServeHTTP(w, r)
 	})
 }
 

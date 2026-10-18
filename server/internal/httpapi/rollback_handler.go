@@ -6,10 +6,12 @@ import (
 	"net/http"
 
 	"advisor/server/internal/changes"
+	"advisor/server/internal/store"
 )
 
 type rollbackHandler struct {
 	requester changes.Requester
+	recorder  store.Recorder
 	logger    *slog.Logger
 }
 
@@ -29,6 +31,7 @@ func (h *rollbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.logger.Info("rollback requested", slog.String("id", receipt.ID))
+	h.recorder.SaveEvent(store.EventRollbackRequest, receipt.ID, map[string]any{"url": receipt.PullsURL})
 	writeJSON(w, http.StatusAccepted, ChangeResponse{ID: receipt.ID, Message: RollbackAcceptedMessage, URL: receipt.PullsURL})
 }
 

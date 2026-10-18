@@ -27,6 +27,13 @@ export interface ChangeStatus {
   runUrl?: string;
 }
 
+export interface ClientErrorReport {
+  message: string;
+  where: string;
+  stack: string;
+  version: string;
+}
+
 export interface ApiErrorBody {
   error?: string;
 }

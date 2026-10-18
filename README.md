@@ -19,10 +19,31 @@ go test ./...      # юнит-тесты
 | `ALLOWED_ORIGINS` | адреса фронта через запятую для CORS, по умолчанию Pages и localhost:4200 |
 | `ADVISOR_MODEL` | модель, по умолчанию `claude-sonnet-5-5` |
 | `GITHUB_TOKEN` | токен для запуска правок приложения из чата, необязателен (см. раздел «Правка приложения из чата») |
+| `DATABASE_URL` | строка подключения Postgres (Neon) для истории и журнала ошибок, необязательна: без неё сервер работает, но ничего не сохраняет (см. раздел «История и журнал ошибок») |
 
 API: `POST /api/chat` (multipart: `text`, `history` как JSON `[{role,text}]`, `files`), заголовок `Authorization: Bearer <пароль>`, ответ `{"reply": "..."}`. `GET /healthz` для проверки хостингом. Фронт запоминает пароль в `localStorage` и просит ввести его заново при ответе 401.
 
 Адрес боевого сервера задаётся в `web/src/app/constants/api.constants.ts` (`API_PRODUCTION_URL`), в dev-режиме фронт ходит на `http://localhost:8080`.
+
+## История и журнал ошибок (Postgres)
+
+Сервер пишет в Postgres, если задана `DATABASE_URL` (бесплатная база на Neon, строка вида `postgres://user:pass@host/db?sslmode=require`). Таблицы создаются сами при старте из `server/internal/store/migrations/*.sql` (применённые миграции помнит таблица `schema_migrations`). Запись идёт в фоне: если база недоступна, чат продолжает работать, а в логе сервера появляется предупреждение.
+
+| Таблица | Что хранит |
+|---|---|
+| `messages` | все реплики: чат приложения (`source=app`, беседа = `conversation`, меняется кнопкой «Очистить») и сессии Claude Code (`source=claude-code`) |
+| `events` | запросы чата, планы правок, заявки на правку и откат, пакеты загрузки |
+| `error_log` | ошибки сервера (всё, что пишется в лог на уровне ERROR, паники) и ошибки приложения в браузере (`source=client`) |
+
+Чтение (заголовок `Authorization: Bearer <пароль>`): `GET /api/history?source=&conversation=&limit=`, `GET /api/events?kind=&limit=`, `GET /api/errors?limit=`. Запись: `POST /api/ingest` (`{source, conversationId, messages:[{externalId, role, text, at}]}`, повтор с тем же `externalId` не создаёт дубль) и `POST /api/client-error`.
+
+Переписку Claude Code (включая этот проект) загружает скрипт `scripts/ingest-claude-sessions.mjs`:
+
+```bash
+ADVISOR_URL=https://advisor-server.onrender.com ADVISOR_PASSWORD=... node scripts/ingest-claude-sessions.mjs
+```
+
+Без аргументов он берёт все сессии текущего проекта из `~/.claude/projects/`, можно указать папку или один `.jsonl`. С флагом `--hook` читает с stdin JSON хука Stop (`transcript_path`) и грузит только текущую сессию. В базу попадает текст реплик как есть, поэтому токены и пароли, названные в беседе, тоже сохранятся.
 
 ## Правка приложения из чата
 
@@ -33,6 +54,8 @@ API: `POST /api/chat` (multipart: `text`, `history` как JSON `[{role,text}]`,
 1. Секрет репозитория `ANTHROPIC_API_KEY` (из `server/.env`): `gh secret set -f server/.env`.
 2. Разрешить Actions создавать pull request: `gh api -X PUT repos/StarcevAlexander/advisor/actions/permissions/workflow -f default_workflow_permissions=read -F can_approve_pull_request_reviews=true`.
 3. На GitHub создать fine-grained токен только для репозитория `advisor` с правом Actions: Read and write и записать его в переменную `GITHUB_TOKEN` сервера на Render. Необязательные переменные: `GITHUB_REPO` (по умолчанию `StarcevAlexander/advisor`), `GITHUB_BRANCH` (по умолчанию `master`).
+
+Claude правит не только `web/src` и `web/public`, но и сервер на Go (`server/`) и базу. Предохранители в `claude-change.yml`: нельзя трогать `go.mod`, `go.sum`, `.env`, `.github/`, `render.yaml`, `scripts/` и зависимости; базу меняют только новой миграцией `NNN_имя.sql` (старые миграции править и удалять нельзя, слова `DROP`, `TRUNCATE`, `DELETE`, `GRANT`, `REVOKE` в миграции запрещены); для правок сервера дополнительно прогоняются `go vet`, `go test` и `go build`. Правка, затронувшая `server/`, сама не сливается: pull request остаётся открытым, и вы принимаете его вручную (переменная `AUTO_MERGE_SERVER` в начале `claude-change.yml`, `"true"` включает автослияние). Откат правки с миграцией не выполняется: git не вернёт базу, такой откат делается вручную.
 
 Откат правки: в настройках (шестерёнка) пункт «Откатить последнюю правку» с окном подтверждения. Он вызывает `POST /api/rollback`, сервер запускает workflow `.github/workflows/claude-rollback.yml`. Workflow берёт последний принятый pull request из ветки `claude/change-*`, который ещё не откатывали (откаты помечены в описании строкой `Откат заявки №N`), делает `git revert`, прогоняет тесты и сборку, сливает откат (ветка `claude/rollback-<id>`, имя запуска `Claude rollback <id>`) и запускает публикацию. Ход отката виден в чате (`GET /api/rollback/{id}`). Если после той правки менялись те же места, откат не применится чисто: запуск завершится ошибкой и ничего не изменит. Для проверки без настоящего GitHub у сервера есть необязательная переменная `GITHUB_API_URL` (по умолчанию `https://api.github.com`).
 

@@ -31,6 +31,8 @@ jobs:
       REQUEST: ${{ inputs.request }}
       REQUEST_ID: ${{ inputs.id }}
       GH_TOKEN: ${{ github.token }}
+      AUTO_MERGE_SERVER: "false"
+      MIGRATIONS_DIR: server/internal/store/migrations
     steps:
       - name: Validate request id
         run: |
@@ -47,6 +49,11 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
       - name: Install app dependencies
         working-directory: web
         run: npm ci
@@ -55,36 +62,30 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code
 
       - name: Let Claude edit the app
-        working-directory: web
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           cat > "$RUNNER_TEMP/prompt.txt" <<'PROMPT'
-          You are changing a small Angular 22 PWA (a personal voice advisor). Your working directory is the app folder web/.
+          You are changing a small personal voice advisor: an Angular 22 PWA in web/ and a Go server with a Postgres database in server/. Your working directory is the repository root.
           Make exactly the change described in the request below and nothing else.
           Rules:
-          - Edit only files under src/ and public/. Never touch package.json, lock files, angular.json, scripts/ or anything outside web/.
-          - Follow CLAUDE.md in this folder and match the style of neighbouring code: signals, inject(), @if/@for, separate .html and .scss files, types in models/, constants in constants/.
+          - Allowed to edit: web/src/, web/public/, and server/ (Go code and new SQL migrations).
+          - Never touch: package.json, lock files, angular.json, web/scripts/, go.mod, go.sum, .github/, render.yaml, scripts/, any .env file, or anything else outside the allowed folders. Do not add dependencies.
+          - Database changes are made only by adding a NEW migration file in server/internal/store/migrations/ named NNN_short_name.sql with the next free number. Never edit or delete an existing migration. Migrations must only add things (CREATE TABLE, ADD COLUMN, CREATE INDEX): no DROP, TRUNCATE, DELETE, or anything that erases data.
+          - Never weaken password checking, CORS, logging of errors, or storage of history. Never print or store secrets.
+          - Frontend: follow web/CLAUDE.md and match neighbouring code: signals, inject(), @if/@for, separate .html and .scss files, types in models/, constants in constants/. Keep all user-visible text in Russian.
+          - Backend: match neighbouring Go code: types in models.go, constants in constants.go, handlers in internal/httpapi, database code in internal/store.
           - Do not write code comments.
-          - Keep all user-visible text in Russian.
-          - After editing run "npm test -- --watch=false" and "npm run build", and fix any failure you caused.
+          - After editing run the checks for what you changed and fix any failure you caused: "npm --prefix web test -- --watch=false" and "npm --prefix web run build" for the frontend; "go -C server vet ./...", "go -C server test ./..." and "go -C server build ./..." for the server.
           - If the request is unclear, unsafe, or would need changes outside these rules, change nothing and explain why.
           - Finish with a short plain summary in Russian of what you changed, without code.
           PROMPT
           printf '\nRequest (in Russian):\n%s\n' "$REQUEST" >> "$RUNNER_TEMP/prompt.txt"
           claude -p "$(cat "$RUNNER_TEMP/prompt.txt")" \
             --model claude-sonnet-5-5 \
-            --max-turns 60 \
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm test:*),Bash(npm run build:*)" \
+            --max-turns 80 \
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm --prefix web test:*),Bash(npm --prefix web run build:*),Bash(go -C server vet:*),Bash(go -C server test:*),Bash(go -C server build:*)" \
             | tee "$RUNNER_TEMP/claude-summary.txt"
-
-      - name: Run tests and build independently
-        id: check
-        working-directory: web
-        continue-on-error: true
-        run: |
-          npm test -- --watch=false
-          npm run build
 
       - name: Enforce allowed paths
         id: diff
@@ -96,27 +97,83 @@ jobs:
             cat "$RUNNER_TEMP/claude-summary.txt"
             exit 0
           fi
-          forbidden=$(git diff --cached --name-only | grep -v -E '^web/(src|public)/' || true)
+
+          outside=$(git diff --cached --name-only | grep -v -E '^(web/(src|public)/|server/)' || true)
+          protected=$(git diff --cached --name-only | grep -E '^server/(go\.mod|go\.sum)$|(^|/)\.env' || true)
+          forbidden=$(printf '%s\n%s' "$outside" "$protected" | sed '/^$/d')
           if [ -n "$forbidden" ]; then
-            echo "::error::Claude touched files outside web/src and web/public:"
+            echo "::error::Claude touched files outside the allowed paths:"
             echo "$forbidden"
             exit 1
           fi
-          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+          touched_migrations=$(git diff --cached --name-status -- "$MIGRATIONS_DIR" | grep -v -E '^A' || true)
+          if [ -n "$touched_migrations" ]; then
+            echo "::error::Existing migrations must not be edited or deleted:"
+            echo "$touched_migrations"
+            exit 1
+          fi
+          new_migrations=$(git diff --cached --name-only --diff-filter=A -- "$MIGRATIONS_DIR")
+          for file in $new_migrations; do
+            if ! basename "$file" | grep -Eq '^[0-9]{3}_[a-z0-9_]+\.sql$'; then
+              echo "::error::Bad migration file name: $file"
+              exit 1
+            fi
+            if grep -Eiq '\b(drop|truncate|delete|grant|revoke)\b' "$file"; then
+              echo "::error::Destructive or privilege statement in migration: $file"
+              exit 1
+            fi
+          done
+
+          server_changed=false
+          if git diff --cached --name-only | grep -q -E '^server/'; then
+            server_changed=true
+          fi
+          {
+            echo "changed=true"
+            echo "server_changed=$server_changed"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run tests and build independently
+        id: check
+        if: steps.diff.outputs.changed == 'true'
+        continue-on-error: true
+        env:
+          SERVER_CHANGED: ${{ steps.diff.outputs.server_changed }}
+        run: |
+          npm --prefix web test -- --watch=false
+          npm --prefix web run build
+          if [ "$SERVER_CHANGED" = "true" ]; then
+            go -C server vet ./...
+            go -C server test ./...
+            go -C server build -o /dev/null .
+          fi
 
       - name: Open the pull request
         if: steps.diff.outputs.changed == 'true'
         env:
           CHECK_OUTCOME: ${{ steps.check.outcome }}
           BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          SERVER_CHANGED: ${{ steps.diff.outputs.server_changed }}
         run: |
           branch="claude/change-${REQUEST_ID}"
+          scope=app
+          if [ "$SERVER_CHANGED" = "true" ]; then
+            scope=server
+          fi
           title_text=$(printf '%s' "$REQUEST" | tr '\n' ' ' | cut -c1-60)
+          subject="feat(${scope}): ${title_text}"
           git config user.name "advisor-bot"
           git config user.email "advisor-bot@users.noreply.github.com"
           git checkout -b "$branch"
-          git commit -m "feat(app): ${title_text}"
+          git commit -m "$subject"
           git push origin "$branch"
+          merge_now=false
+          if [ "$CHECK_OUTCOME" = "success" ]; then
+            if [ "$SERVER_CHANGED" != "true" ] || [ "$AUTO_MERGE_SERVER" = "true" ]; then
+              merge_now=true
+            fi
+          fi
           {
             echo "Запрос из чата:"
             echo
@@ -127,9 +184,17 @@ jobs:
             cat "$RUNNER_TEMP/claude-summary.txt"
             echo
             if [ "$CHECK_OUTCOME" = "success" ]; then
-              echo "Проверки: тесты и сборка прошли."
+              if [ "$SERVER_CHANGED" = "true" ]; then
+                echo "Проверки: тесты и сборка фронта, проверка, тесты и сборка сервера прошли."
+              else
+                echo "Проверки: тесты и сборка прошли."
+              fi
             else
               echo "ВНИМАНИЕ: тесты или сборка не прошли, принимать без правок нельзя."
+            fi
+            if [ "$SERVER_CHANGED" = "true" ] && [ "$merge_now" != "true" ]; then
+              echo
+              echo "Правка затрагивает сервер или базу, поэтому сама не публикуется: проверьте изменения и нажмите Merge."
             fi
           } > "$RUNNER_TEMP/pr-body.md"
           draft=""
@@ -139,10 +204,10 @@ jobs:
           gh pr create \
             --base "$BASE_BRANCH" \
             --head "$branch" \
-            --title "feat(app): ${title_text}" \
+            --title "$subject" \
             --body-file "$RUNNER_TEMP/pr-body.md" \
             $draft
-          if [ "$CHECK_OUTCOME" = "success" ]; then
-            gh pr merge "$branch" --squash --delete-branch --subject "feat(app): ${title_text}"
+          if [ "$merge_now" = "true" ]; then
+            gh pr merge "$branch" --squash --delete-branch --subject "$subject"
             gh workflow run deploy.yml --ref "$BASE_BRANCH"
           fi

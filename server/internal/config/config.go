@@ -19,6 +19,7 @@ func Load() (Config, error) {
 		GitHubRepo:     strings.TrimSpace(os.Getenv(EnvGitHubRepo)),
 		GitHubBranch:   strings.TrimSpace(os.Getenv(EnvGitHubBranch)),
 		GitHubAPIURL:   strings.TrimSpace(os.Getenv(EnvGitHubAPIURL)),
+		DatabaseURL:    strings.TrimSpace(os.Getenv(EnvDatabaseURL)),
 	}
 
 	var problems []error

@@ -3,6 +3,7 @@ import { Service, inject, isDevMode } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import {
   API_CHANGE_PATH,
+  API_CLIENT_ERROR_PATH,
   API_CHANGE_PLAN_PATH,
   API_CHAT_PATH,
   API_DEV_URL,
@@ -20,19 +21,34 @@ import {
   ChangeReply,
   ChangeStatus,
   ChatApiError,
+  ClientErrorReport,
   ComposerPayload,
 } from '../models';
 import { Access } from './access';
+import { Conversation } from './conversation';
 
 @Service()
 export class ChatApi {
   private readonly http = inject(HttpClient);
   private readonly access = inject(Access);
+  private readonly conversation = inject(Conversation);
+
+  async reportClientError(report: ClientErrorReport): Promise<void> {
+    if (!this.access.granted()) {
+      return;
+    }
+    try {
+      await this.send<unknown>('POST', API_CLIENT_ERROR_PATH, report);
+    } catch {
+      return;
+    }
+  }
 
   async ask(payload: ComposerPayload, history: ApiTurn[]): Promise<string> {
     const body = new FormData();
     body.append('text', payload.text);
     body.append('history', JSON.stringify(history));
+    body.append('conversation', this.conversation.id());
     for (const attachment of payload.attachments) {
       body.append('files', attachment.file, attachment.name);
     }

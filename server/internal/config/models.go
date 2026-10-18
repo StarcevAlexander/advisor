@@ -10,4 +10,5 @@ type Config struct {
 	GitHubRepo     string
 	GitHubBranch   string
 	GitHubAPIURL   string
+	DatabaseURL    string
 }

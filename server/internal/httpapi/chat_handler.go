@@ -9,12 +9,15 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strings"
+	"time"
 
 	"advisor/server/internal/chat"
+	"advisor/server/internal/store"
 )
 
 type chatHandler struct {
 	responder chat.Responder
+	recorder  store.Recorder
 	logger    *slog.Logger
 }
 
@@ -36,8 +39,25 @@ func (h *chatHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("reply failed", slog.Any("error", err))
 		writeError(w, http.StatusBadGateway, MsgUpstreamFailed)
 	default:
+		h.record(r.FormValue(FieldConversation), conversation, reply)
 		writeJSON(w, http.StatusOK, ReplyResponse{Reply: reply})
 	}
+}
+
+func (h *chatHandler) record(conversationID string, conversation chat.Conversation, reply string) {
+	names := make([]string, 0, len(conversation.Attachments))
+	for _, attachment := range conversation.Attachments {
+		names = append(names, attachment.Name)
+	}
+	now := time.Now()
+	h.recorder.SaveMessages([]store.Message{
+		{Source: store.SourceApp, ConversationID: conversationID, Role: store.RoleUser, Text: conversation.Text, Attachments: names, CreatedAt: now},
+		{Source: store.SourceApp, ConversationID: conversationID, Role: store.RoleAssistant, Text: reply, CreatedAt: now.Add(time.Millisecond)},
+	})
+	h.recorder.SaveEvent(store.EventChatRequest, conversationID, map[string]any{
+		"historyTurns": len(conversation.History),
+		"attachments":  len(names),
+	})
 }
 
 func (h *chatHandler) readConversation(w http.ResponseWriter, r *http.Request) (chat.Conversation, int, string) {

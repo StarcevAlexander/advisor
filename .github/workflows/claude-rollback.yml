@@ -93,12 +93,28 @@ jobs:
             echo "::error::The change cannot be reverted cleanly: later changes depend on it."
             exit 1
           fi
-          forbidden=$(git diff --name-only "origin/${BASE_BRANCH}"...HEAD | grep -v -E '^web/(src|public)/' || true)
+          changed_files=$(git diff --name-only "origin/${BASE_BRANCH}"...HEAD)
+          forbidden=$(printf '%s\n' "$changed_files" | grep -v -E '^(web/(src|public)/|server/)' | sed '/^$/d' || true)
           if [ -n "$forbidden" ]; then
-            echo "::error::The revert touches files outside web/src and web/public:"
+            echo "::error::The revert touches files outside the allowed paths:"
             echo "$forbidden"
             exit 1
           fi
+          if printf '%s\n' "$changed_files" | grep -q -E '^server/internal/store/migrations/'; then
+            echo "::error::The change added a database migration. Git cannot undo the database, roll this one back by hand."
+            exit 1
+          fi
+          server_changed=false
+          if printf '%s\n' "$changed_files" | grep -q -E '^server/'; then
+            server_changed=true
+          fi
+          echo "SERVER_CHANGED=$server_changed" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-go@v5
+        if: steps.pick.outputs.changed == 'true'
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
 
       - name: Install app dependencies
         if: steps.pick.outputs.changed == 'true'
@@ -108,11 +124,15 @@ jobs:
       - name: Run tests and build
         id: check
         if: steps.pick.outputs.changed == 'true'
-        working-directory: web
         continue-on-error: true
         run: |
-          npm test -- --watch=false
-          npm run build
+          npm --prefix web test -- --watch=false
+          npm --prefix web run build
+          if [ "$SERVER_CHANGED" = "true" ]; then
+            go -C server vet ./...
+            go -C server test ./...
+            go -C server build -o /dev/null .
+          fi
 
       - name: Open the pull request and publish
         if: steps.pick.outputs.changed == 'true'
@@ -122,7 +142,11 @@ jobs:
           CHANGE_TITLE: ${{ steps.pick.outputs.title }}
         run: |
           branch="claude/rollback-${REQUEST_ID}"
-          subject="revert(app): ${CHANGE_TITLE#feat(app): }"
+          scope=app
+          if [ "$SERVER_CHANGED" = "true" ]; then
+            scope=server
+          fi
+          subject="revert(${scope}): $(printf '%s' "$CHANGE_TITLE" | sed -E 's/^feat\((app|server)\): //')"
           git push origin "$branch"
           {
             echo "Откат заявки №${NUMBER}"

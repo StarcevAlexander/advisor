@@ -9,10 +9,12 @@ import (
 	"unicode/utf8"
 
 	"advisor/server/internal/changes"
+	"advisor/server/internal/store"
 )
 
 type changeHandler struct {
 	requester changes.Requester
+	recorder  store.Recorder
 	logger    *slog.Logger
 }
 
@@ -49,6 +51,7 @@ func (h *changeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.logger.Info("change requested", slog.String("id", receipt.ID), slog.Int("runes", utf8.RuneCountInString(text)))
+	h.recorder.SaveEvent(store.EventChangeRequested, receipt.ID, map[string]any{"request": text, "url": receipt.PullsURL})
 	writeJSON(w, http.StatusAccepted, ChangeResponse{ID: receipt.ID, Message: ChangeAcceptedMessage, URL: receipt.PullsURL})
 }
 

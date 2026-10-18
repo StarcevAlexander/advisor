@@ -9,12 +9,14 @@ import (
 	"unicode/utf8"
 
 	"advisor/server/internal/chat"
+	"advisor/server/internal/store"
 )
 
 type planHandler struct {
-	planner chat.Planner
-	enabled bool
-	logger  *slog.Logger
+	planner  chat.Planner
+	enabled  bool
+	recorder store.Recorder
+	logger   *slog.Logger
 }
 
 func (h *planHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -50,5 +52,6 @@ func (h *planHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.logger.Info("change planned", slog.Int("steps", len(plan.Steps)))
+	h.recorder.SaveEvent(store.EventChangePlan, "", map[string]any{"request": text, "plan": plan})
 	writeJSON(w, http.StatusOK, plan)
 }

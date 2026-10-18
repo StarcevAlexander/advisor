@@ -23,6 +23,25 @@ const (
 )
 
 const (
+	IngestRoute          = "POST /api/ingest"
+	HistoryRoute         = "GET /api/history"
+	EventsRoute          = "GET /api/events"
+	ErrorsRoute          = "GET /api/errors"
+	ClientErrorRoute     = "POST /api/client-error"
+	MaxIngestBodyBytes   = 16 << 20
+	MaxIngestMessages    = 2000
+	MaxClientErrorBytes  = 32 << 10
+	MsgBadIngest         = "Неверный пакет сообщений"
+	MsgHistoryFailed     = "Не удалось прочитать из базы"
+	QueryConversation    = "conversation"
+	QuerySource          = "source"
+	QueryLimit           = "limit"
+	QueryKind            = "kind"
+	FieldConversation    = "conversation"
+	maxClientErrorFields = 2000
+)
+
+const (
 	FieldText    = "text"
 	FieldHistory = "history"
 	FieldFiles   = "files"

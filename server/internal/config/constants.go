@@ -10,6 +10,7 @@ const (
 	EnvGitHubRepo     = "GITHUB_REPO"
 	EnvGitHubBranch   = "GITHUB_BRANCH"
 	EnvGitHubAPIURL   = "GITHUB_API_URL"
+	EnvDatabaseURL    = "DATABASE_URL"
 	DefaultPort       = "8080"
 	DefaultModel      = "claude-sonnet-5-5"
 	MinPasswordLength = 8

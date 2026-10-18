@@ -87,6 +87,30 @@ describe('Chat', () => {
     expect(history.map((turn) => turn.text)).not.toContain('Второй');
   });
 
+  it('keeps one conversation id between messages and starts a new one after clearing', async () => {
+    chat.send({ text: 'Первый', attachments: [] });
+    const first = http.expectOne(chatUrl);
+    const firstId = (first.request.body as FormData).get('conversation') as string;
+    first.flush({ reply: 'Ответ' });
+    await vi.waitFor(() => expect(chat.busy()).toBe(false));
+
+    chat.send({ text: 'Второй', attachments: [] });
+    const second = http.expectOne(chatUrl);
+    expect((second.request.body as FormData).get('conversation')).toBe(firstId);
+    second.flush({ reply: 'Ещё ответ' });
+    await vi.waitFor(() => expect(chat.busy()).toBe(false));
+
+    chat.clear();
+    chat.send({ text: 'Новый', attachments: [] });
+    const third = http.expectOne(chatUrl);
+    const thirdId = (third.request.body as FormData).get('conversation') as string;
+    third.flush({ reply: 'Привет снова' });
+    await vi.waitFor(() => expect(chat.busy()).toBe(false));
+
+    expect(firstId).not.toBe('');
+    expect(thirdId).not.toBe(firstId);
+  });
+
   it('marks the reply as failed and clears the password on 401', async () => {
     chat.send({ text: 'Привет', attachments: [] });
     http

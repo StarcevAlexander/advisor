@@ -10,6 +10,10 @@ export const API_CHANGE_PLAN_PATH = '/api/change/plan';
 
 export const API_ROLLBACK_PATH = '/api/rollback';
 
+export const API_CLIENT_ERROR_PATH = '/api/client-error';
+
+export const CONVERSATION_STORAGE_KEY = 'advisor.conversation-id';
+
 export const HTTP_UNAUTHORIZED = 401;
 
 export const HTTP_OFFLINE = 0;
