@@ -4,7 +4,25 @@ export const THEME_STORAGE_KEY = 'advisor.theme';
 
 export const DEFAULT_THEME: ThemeId = 'light';
 
-export const THEME_SECTION_TITLE = 'Цветовая тема';
+export const SCALE_STORAGE_KEY = 'advisor.scale';
+
+export const DEFAULT_SCALE = 100;
+
+export const MIN_SCALE = 80;
+
+export const MAX_SCALE = 150;
+
+export const SCALE_STEP = 5;
+
+export const BASE_FONT_SIZE_PX = 16;
+
+export const APPEARANCE_TITLE = 'Внешний вид';
+
+export const THEME_SECTION_TITLE = 'Тема';
+
+export const SCALE_SECTION_TITLE = 'Масштаб';
+
+export const BACK_LABEL = 'Назад';
 
 export const THEMES: readonly ThemeOption[] = [
   { id: 'light', label: 'Светлая', themeColor: '#dde7ee' },

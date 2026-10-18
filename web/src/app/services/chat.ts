@@ -34,6 +34,7 @@ import { Access } from './access';
 import { ChatApi } from './chat-api';
 import { Conversation } from './conversation';
 import { ChatHistory } from './chat-history';
+import { ErrorLog } from './error-log';
 import { Settings } from './settings';
 
 @Service()
@@ -42,6 +43,7 @@ export class Chat {
   private readonly conversation = inject(Conversation);
   private readonly access = inject(Access);
   private readonly history = inject(ChatHistory);
+  private readonly errorLog = inject(ErrorLog);
   private readonly settings = inject(Settings);
 
   readonly messages = signal<ChatMessage[]>(this.restoreMessages());
@@ -398,6 +400,7 @@ export class Chat {
       this.access.clear();
     }
     const message = error instanceof ChatApiError ? error.message : String(error);
+    this.errorLog.record('send', message);
     this.updateMessage(id, { text: message, pending: false, failed: true });
   }
 

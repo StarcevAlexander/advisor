@@ -72,7 +72,7 @@ export class App {
     afterRenderEffect(() => {
       this.chat.messages();
       this.stickToBottom = true;
-      this.scrollToBottom('smooth');
+      this.scrollToBottom('auto');
     });
 
     afterNextRender(() => {

@@ -7,7 +7,26 @@
 >
   <div class="panel__body">
     <header class="panel__header">
-      <h2 id="settings-title" class="panel__title">{{ title }}</h2>
+      @if (screen() !== 'main') {
+        <button
+          type="button"
+          class="panel__back"
+          [attr.aria-label]="backLabel"
+          (click)="onBackClicked()"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+            <path
+              d="M15 5l-7 7 7 7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      }
+      <h2 id="settings-title" class="panel__title">{{ heading() }}</h2>
       <button
         type="button"
         class="panel__close"
@@ -25,66 +44,143 @@
         </svg>
       </button>
     </header>
-    <fieldset class="themes">
-      <legend class="themes__title">{{ themeTitle }}</legend>
-      <div class="themes__grid">
-        @for (option of themes; track option.id) {
-          <label class="theme" [attr.data-theme]="option.id">
-            <input
-              class="theme__input"
-              type="radio"
-              name="theme"
-              [value]="option.id"
-              [checked]="settings.theme() === option.id"
-              (change)="onThemeChanged(option.id)"
+    @switch (screen()) {
+      @case ('appearance') {
+        <button type="button" class="panel__item" (click)="screen.set('theme')">
+          {{ themeTitle }}
+          <span class="panel__value">{{ currentThemeLabel() }}</span>
+        </button>
+        <button type="button" class="panel__item" (click)="screen.set('scale')">
+          {{ scaleTitle }}
+          <span class="panel__value">{{ settings.scale() }}%</span>
+        </button>
+      }
+      @case ('theme') {
+        <fieldset class="themes">
+          <legend class="themes__title">{{ themeTitle }}</legend>
+          <div class="themes__grid">
+            @for (option of themes; track option.id) {
+              <label class="theme" [attr.data-theme]="option.id">
+                <input
+                  class="theme__input"
+                  type="radio"
+                  name="theme"
+                  [value]="option.id"
+                  [checked]="settings.theme() === option.id"
+                  (change)="onThemeChanged(option.id)"
+                />
+                <span class="theme__preview" aria-hidden="true">
+                  <span class="theme__header"></span>
+                  <span class="theme__bubble theme__bubble--assistant"></span>
+                  <span class="theme__bubble theme__bubble--user"></span>
+                  <span class="theme__composer">
+                    <span class="theme__field"></span>
+                    <span class="theme__mic"></span>
+                  </span>
+                </span>
+                <span class="theme__label">{{ option.label }}</span>
+              </label>
+            }
+          </div>
+        </fieldset>
+      }
+      @case ('errors') {
+        <app-error-log />
+      }
+      @case ('requests') {
+        <app-request-log />
+      }
+      @case ('scale') {
+        <div class="scale">
+          <output class="scale__value" for="scale-range">{{ settings.scale() }}%</output>
+          <input
+            id="scale-range"
+            class="scale__range"
+            type="range"
+            [attr.aria-label]="scaleTitle"
+            [min]="minScale"
+            [max]="maxScale"
+            [step]="scaleStep"
+            [value]="settings.scale()"
+            (input)="onScaleChanged($event)"
+          />
+        </div>
+      }
+      @default {
+        <button type="button" class="panel__item" (click)="screen.set('appearance')">
+          {{ appearanceTitle }}
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+            <path
+              d="M9 5l7 7-7 7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             />
-            <span class="theme__preview" aria-hidden="true">
-              <span class="theme__header"></span>
-              <span class="theme__bubble theme__bubble--assistant"></span>
-              <span class="theme__bubble theme__bubble--user"></span>
-              <span class="theme__composer">
-                <span class="theme__field"></span>
-                <span class="theme__mic"></span>
-              </span>
-            </span>
-            <span class="theme__label">{{ option.label }}</span>
+          </svg>
+        </button>
+        @if (speech.synthesisSupported) {
+          <label class="panel__toggle">
+            <input
+              type="checkbox"
+              [checked]="settings.speakReplies()"
+              (change)="onSpeakRepliesChanged($event)"
+            />
+            {{ speakRepliesLabel }}
           </label>
         }
-      </div>
-    </fieldset>
-    @if (speech.synthesisSupported) {
-      <label class="panel__toggle">
-        <input
-          type="checkbox"
-          [checked]="settings.speakReplies()"
-          (change)="onSpeakRepliesChanged($event)"
-        />
-        {{ speakRepliesLabel }}
-      </label>
-    }
-    <label class="panel__toggle">
-      <input
-        type="checkbox"
-        [checked]="settings.developerMode()"
-        (change)="onDeveloperModeChanged($event)"
-      />
-      {{ developerModeLabel }}
-    </label>
-    <div class="panel__action">
-      <button
-        type="button"
-        class="panel__rollback"
-        [disabled]="chat.busy() || !access.granted()"
-        (click)="rollbackRequested.emit()"
-      >
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
-          <path
-            d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z"
+        <label class="panel__toggle">
+          <input
+            type="checkbox"
+            [checked]="settings.developerMode()"
+            (change)="onDeveloperModeChanged($event)"
           />
-        </svg>
-        {{ rollbackLabel }}
-      </button>
-      <p class="panel__hint">{{ rollbackHint }}</p>
-    </div>
+          {{ developerModeLabel }}
+        </label>
+        <button type="button" class="panel__item" (click)="screen.set('errors')">
+          {{ errorLogTitle }}
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+            <path
+              d="M9 5l7 7-7 7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button type="button" class="panel__item" (click)="screen.set('requests')">
+          {{ requestLogTitle }}
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+            <path
+              d="M9 5l7 7-7 7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <div class="panel__action">
+          <button
+            type="button"
+            class="panel__rollback"
+            [disabled]="chat.busy() || !access.granted()"
+            (click)="rollbackRequested.emit()"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+              <path
+                d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z"
+              />
+            </svg>
+            {{ rollbackLabel }}
+          </button>
+          <p class="panel__hint">{{ rollbackHint }}</p>
+        </div>
+      }
+    }
   </div>
 </dialog>

@@ -1,21 +1,42 @@
-import { Component, ElementRef, effect, inject, model, output, viewChild } from '@angular/core';
 import {
+  Component,
+  ElementRef,
+  computed,
+  effect,
+  inject,
+  model,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
+import {
+  APPEARANCE_TITLE,
+  BACK_LABEL,
+  ERROR_LOG_TITLE,
+  REQUEST_LOG_TITLE,
   DEVELOPER_MODE_LABEL,
   ROLLBACK_MENU_HINT,
   ROLLBACK_MENU_LABEL,
+  MAX_SCALE,
+  MIN_SCALE,
+  SCALE_SECTION_TITLE,
+  SCALE_STEP,
   SETTINGS_CLOSE_LABEL,
   SETTINGS_TITLE,
   SPEAK_REPLIES_LABEL,
   THEME_SECTION_TITLE,
   THEMES,
 } from '../../constants';
-import { ThemeId } from '../../models';
+import { SettingsScreen, ThemeId } from '../../models';
 import { Access } from '../../services/access';
 import { Chat } from '../../services/chat';
 import { Settings } from '../../services/settings';
 import { Speech } from '../../services/speech';
+import { ErrorLogScreen } from '../error-log/error-log';
+import { RequestLogScreen } from '../request-log/request-log';
 
 @Component({
+  imports: [ErrorLogScreen, RequestLogScreen],
   selector: 'app-settings-panel',
   styleUrl: './settings-panel.scss',
   templateUrl: './settings-panel.html',
@@ -32,8 +53,37 @@ export class SettingsPanel {
   protected readonly rollbackLabel = ROLLBACK_MENU_LABEL;
   protected readonly rollbackHint = ROLLBACK_MENU_HINT;
 
+  protected readonly appearanceTitle = APPEARANCE_TITLE;
   protected readonly themeTitle = THEME_SECTION_TITLE;
+  protected readonly scaleTitle = SCALE_SECTION_TITLE;
+  protected readonly backLabel = BACK_LABEL;
+  protected readonly errorLogTitle = ERROR_LOG_TITLE;
+  protected readonly requestLogTitle = REQUEST_LOG_TITLE;
   protected readonly themes = THEMES;
+  protected readonly minScale = MIN_SCALE;
+  protected readonly maxScale = MAX_SCALE;
+  protected readonly scaleStep = SCALE_STEP;
+  protected readonly screen = signal<SettingsScreen>('main');
+
+  protected readonly currentThemeLabel = computed(
+    () => this.themes.find((option) => option.id === this.settings.theme())?.label,
+  );
+  protected readonly heading = computed(() => {
+    switch (this.screen()) {
+      case 'appearance':
+        return this.appearanceTitle;
+      case 'theme':
+        return this.themeTitle;
+      case 'scale':
+        return this.scaleTitle;
+      case 'errors':
+        return this.errorLogTitle;
+      case 'requests':
+        return this.requestLogTitle;
+      default:
+        return this.title;
+    }
+  });
 
   readonly open = model(false);
   readonly rollbackRequested = output();
@@ -43,6 +93,9 @@ export class SettingsPanel {
   constructor() {
     effect(() => {
       const element = this.dialog().nativeElement;
+      if (!this.open()) {
+        this.screen.set('main');
+      }
       if (this.open() && !element.open) {
         element.showModal();
       } else if (!this.open() && element.open) {
@@ -65,6 +118,16 @@ export class SettingsPanel {
 
   protected onThemeChanged(id: ThemeId): void {
     this.settings.setTheme(id);
+  }
+
+  protected onScaleChanged(event: Event): void {
+    this.settings.setScale(Number((event.target as HTMLInputElement).value));
+  }
+
+  protected onBackClicked(): void {
+    this.screen.update((screen) =>
+      screen === 'theme' || screen === 'scale' ? 'appearance' : 'main',
+    );
   }
 
   protected onDialogClicked(event: MouseEvent): void {
