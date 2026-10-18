@@ -18,6 +18,8 @@ import { SettingsPanel } from './components/settings-panel/settings-panel';
 import {
   CLEAR_CONFIRM_TIMEOUT_MS,
   HISTORY_CONTEXT_LABEL,
+  NOTIFY_BUTTON_LABEL,
+  NOTIFY_WAITING_LABEL,
   ROLLBACK_CONFIRM_LABEL,
   ROLLBACK_CONFIRM_TEXT,
   ROLLBACK_CONFIRM_TITLE,
@@ -30,6 +32,7 @@ import { AppUpdate } from './services/app-update';
 import { Chat } from './services/chat';
 import { Settings } from './services/settings';
 import { Speech } from './services/speech';
+import { TestNotification } from './services/test-notification';
 import { APP_VERSION } from './version';
 
 @Component({
@@ -44,6 +47,9 @@ export class App {
   protected readonly speech = inject(Speech);
   protected readonly settings = inject(Settings);
   protected readonly appUpdate = inject(AppUpdate);
+  protected readonly testNotification = inject(TestNotification);
+  protected readonly notifyLabel = NOTIFY_BUTTON_LABEL;
+  protected readonly notifyWaitingLabel = NOTIFY_WAITING_LABEL;
   protected readonly settingsOpenLabel = SETTINGS_OPEN_LABEL;
   protected readonly updateLabel = UPDATE_BUTTON_LABEL;
   protected readonly contextLabel = HISTORY_CONTEXT_LABEL;
