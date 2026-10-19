@@ -1,20 +1,43 @@
+import { readFileSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const SOURCE = 'claude-code';
 const BATCH_SIZE = 200;
 const REMINDER_BLOCK = /<system-reminder>[\s\S]*?<\/system-reminder>/g;
 
-const url = (process.env.ADVISOR_URL ?? '').replace(/\/+$/, '');
-const password = process.env.ADVISOR_PASSWORD ?? '';
+const ENV_FILE = process.env.ADVISOR_ENV_FILE ?? join(homedir(), '.claude', 'advisor-ingest.env');
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+function readEnvFile(path) {
+  try {
+    return Object.fromEntries(
+      readFileSync(path, 'utf8')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith('#') && line.includes('='))
+        .map((line) => {
+          const index = line.indexOf('=');
+          return [line.slice(0, index).trim(), line.slice(index + 1).trim()];
+        }),
+    );
+  } catch {
+    return {};
+  }
+}
+
+const fileEnv = readEnvFile(ENV_FILE);
+const url = (process.env.ADVISOR_URL ?? fileEnv.ADVISOR_URL ?? '').replace(/\/+$/, '');
+const password = process.env.ADVISOR_PASSWORD ?? fileEnv.ADVISOR_PASSWORD ?? '';
 const args = process.argv.slice(2);
 const fromHook = args.includes('--hook');
 const target = args.find((arg) => !arg.startsWith('--'));
 
 if (!url || !password) {
-  console.error('Нужны переменные ADVISOR_URL и ADVISOR_PASSWORD');
-  process.exit(2);
+  console.error(`Нужны ADVISOR_URL и ADVISOR_PASSWORD (переменные окружения или файл ${ENV_FILE})`);
+  process.exit(fromHook ? 0 : 2);
 }
 
 function projectSlug(cwd) {
@@ -100,7 +123,9 @@ async function readStdin() {
 async function transcriptPaths() {
   if (fromHook) {
     const payload = JSON.parse(await readStdin());
-    return payload.transcript_path ? [payload.transcript_path] : [];
+    const cwd = resolve(payload.cwd ?? '');
+    const inRepo = cwd === REPO_ROOT || cwd.startsWith(REPO_ROOT + sep);
+    return inRepo && payload.transcript_path ? [payload.transcript_path] : [];
   }
   if (target?.endsWith('.jsonl')) {
     return [target];
@@ -116,5 +141,5 @@ try {
   }
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
+  process.exit(fromHook ? 0 : 1);
 }
