@@ -40,7 +40,7 @@ API: `POST /api/chat` (multipart: `text`, `history` как JSON `[{role,text}]`,
 Переписку Claude Code (включая этот проект) загружает скрипт `scripts/ingest-claude-sessions.mjs`:
 
 ```bash
-ADVISOR_URL=https://advisor-server.onrender.com ADVISOR_PASSWORD=... node scripts/ingest-claude-sessions.mjs
+ADVISOR_URL=https://interceptor.tail969ed0.ts.net:8443 ADVISOR_PASSWORD=... node scripts/ingest-claude-sessions.mjs
 ```
 
 Без аргументов он берёт все сессии текущего проекта из `~/.claude/projects/`, можно указать папку или один `.jsonl`. С флагом `--hook` читает с stdin JSON хука Stop (`transcript_path`) и грузит только текущую сессию. В базу попадает текст реплик как есть, поэтому токены и пароли, названные в беседе, тоже сохранятся.
