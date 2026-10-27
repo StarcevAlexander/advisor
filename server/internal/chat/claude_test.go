@@ -123,6 +123,70 @@ func TestClaudeReplyUpstreamError(t *testing.T) {
 	}
 }
 
+func TestClaudeReplyUploadsOversizedAttachment(t *testing.T) {
+	var uploads, deletes int
+	var message map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/files":
+			uploads++
+			if r.FormValue("expires_in_seconds") != "3600" {
+				t.Errorf("expires_in_seconds = %q", r.FormValue("expires_in_seconds"))
+			}
+			_, _ = w.Write([]byte(`{"id":"file_big","type":"file","filename":"big.pdf","mime_type":"application/pdf","size_bytes":1,"created_at":"2026-10-27T00:00:00Z"}`))
+		case r.Method == http.MethodDelete && r.URL.Path == "/v1/files/file_big":
+			deletes++
+			_, _ = w.Write([]byte(`{"id":"file_big","type":"file_deleted"}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/messages":
+			if err := json.NewDecoder(r.Body).Decode(&message); err != nil {
+				t.Errorf("decode body: %v", err)
+			}
+			_, _ = w.Write([]byte(textResponse("Прочитал.", "end_turn")))
+		default:
+			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	claude := NewClaude("test-key", "claude-sonnet-5-5", option.WithBaseURL(server.URL), option.WithMaxRetries(0))
+
+	bigPDF := append([]byte("%PDF-1.4\n"), make([]byte, InlineAttachmentBudget)...)
+	reply, err := claude.Reply(context.Background(), Conversation{
+		Text: "что в документах?",
+		Attachments: []Attachment{
+			{Name: "pic.png", Data: []byte(testPNG)},
+			{Name: "big.pdf", Data: bigPDF},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Reply: %v", err)
+	}
+	if reply != "Прочитал." {
+		t.Errorf("reply = %q", reply)
+	}
+	if uploads != 1 || deletes != 1 {
+		t.Errorf("uploads = %d, deletes = %d, want 1 and 1", uploads, deletes)
+	}
+
+	messages, _ := message["messages"].([]any)
+	last, _ := messages[len(messages)-1].(map[string]any)
+	blocks, _ := last["content"].([]any)
+	if len(blocks) != 3 {
+		t.Fatalf("blocks = %d, want image + document + text", len(blocks))
+	}
+	image, _ := blocks[0].(map[string]any)
+	imageSource, _ := image["source"].(map[string]any)
+	if imageSource["type"] != "base64" {
+		t.Errorf("small image source = %v, want base64", imageSource["type"])
+	}
+	document, _ := blocks[1].(map[string]any)
+	documentSource, _ := document["source"].(map[string]any)
+	if document["type"] != "document" || documentSource["type"] != "file" || documentSource["file_id"] != "file_big" {
+		t.Errorf("big pdf block = %v", document)
+	}
+}
+
 func TestClaudeReplyUnsupportedAttachment(t *testing.T) {
 	claude := NewClaude("test-key", "claude-sonnet-5-5", option.WithMaxRetries(0))
 

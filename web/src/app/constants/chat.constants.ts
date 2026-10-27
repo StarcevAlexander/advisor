@@ -1,8 +1,22 @@
 export const SPEECH_LANG = 'ru-RU';
 
-export const MAX_ATTACHMENT_SIZE_BYTES = 20 * 1024 * 1024;
+export const BYTES_IN_MB = 1024 * 1024;
+
+export const MAX_ATTACHMENT_SIZE_BYTES = 100 * BYTES_IN_MB;
+
+export const MAX_ATTACHMENTS_TOTAL_BYTES = 100 * BYTES_IN_MB;
 
 export const MAX_ATTACHMENTS = 8;
+
+export const ATTACHMENT_MESSAGES = {
+  tooMany: `Можно приложить не больше ${MAX_ATTACHMENTS} файлов`,
+  tooLarge: (name: string) =>
+    `Файл «${name}» больше ${MAX_ATTACHMENT_SIZE_BYTES / BYTES_IN_MB} МБ, такой не отправить`,
+  totalTooLarge: (name: string) =>
+    `Файл «${name}» не добавлен: вместе вложения больше ${MAX_ATTACHMENTS_TOTAL_BYTES / BYTES_IN_MB} МБ`,
+  unreadable: (name: string) =>
+    `Не удалось прочитать файл «${name}». Если он в iCloud или на другом диске, сначала скачайте его на телефон и приложите снова`,
+} as const;
 
 export const CHAT_HISTORY_STORAGE_KEY = 'advisor.chat-history';
 

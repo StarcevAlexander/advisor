@@ -1,8 +1,10 @@
 package chat
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -23,10 +25,16 @@ func NewClaude(apiKey, model string, options ...option.RequestOption) *Claude {
 }
 
 func (c *Claude) Reply(ctx context.Context, conversation Conversation) (string, error) {
-	messages, err := buildMessages(conversation)
+	classified, err := classifyAttachments(conversation.Attachments)
 	if err != nil {
 		return "", err
 	}
+	attachmentBlocks, uploaded, err := buildAttachmentBlocks(ctx, classified, c.uploadFile)
+	defer c.deleteFiles(uploaded)
+	if err != nil {
+		return "", err
+	}
+	messages := buildMessages(conversation, attachmentBlocks)
 
 	response, err := c.client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:        c.model,
@@ -53,4 +61,28 @@ func (c *Claude) Reply(ctx context.Context, conversation Conversation) (string, 
 		return "", ErrEmptyReply
 	}
 	return strings.TrimSpace(reply.String()), nil
+}
+
+func (c *Claude) uploadFile(ctx context.Context, attachment classifiedAttachment) (string, error) {
+	metadata, err := c.client.Files.Upload(ctx, anthropic.FileUploadParams{
+		File:             anthropic.File(bytes.NewReader(attachment.Data), attachment.Name, attachment.mediaType),
+		ExpiresInSeconds: anthropic.Int(UploadedFileTTLSeconds),
+	})
+	if err != nil {
+		return "", err
+	}
+	return metadata.ID, nil
+}
+
+func (c *Claude) deleteFiles(fileIDs []string) {
+	if len(fileIDs) == 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), FileCleanupTimeout)
+	defer cancel()
+	for _, fileID := range fileIDs {
+		if _, err := c.client.Files.Delete(ctx, fileID, anthropic.FileDeleteParams{}); err != nil {
+			slog.Warn("delete uploaded file failed", slog.String("file", fileID), slog.Any("error", err))
+		}
+	}
 }

@@ -2,8 +2,10 @@ import { Component, computed, inject, input, model, output, signal } from '@angu
 import { form, FormField } from '@angular/forms/signals';
 import {
   ACCEPTED_FILE_TYPES,
+  ATTACHMENT_MESSAGES,
   MAX_ATTACHMENT_SIZE_BYTES,
   MAX_ATTACHMENTS,
+  MAX_ATTACHMENTS_TOTAL_BYTES,
   VOICE_INPUT_LABELS,
 } from '../../constants';
 import { Attachment, ComposerPayload } from '../../models';
@@ -45,16 +47,27 @@ export class Composer {
     this.error.set(undefined);
 
     const accepted: Attachment[] = [];
+    let totalBytes = this.attachments().reduce((sum, attachment) => sum + attachment.size, 0);
     for (const file of files) {
       if (this.attachments().length + accepted.length >= MAX_ATTACHMENTS) {
-        this.reportError(`Можно приложить не больше ${MAX_ATTACHMENTS} файлов`);
+        this.reportError(ATTACHMENT_MESSAGES.tooMany);
         break;
       }
       if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
-        this.reportError(`Файл «${file.name}» больше 20 МБ`);
+        this.reportError(ATTACHMENT_MESSAGES.tooLarge(file.name));
         continue;
       }
-      const prepared = await this.imageCompressor.prepare(file);
+      const loaded = await this.loadIntoMemory(file);
+      if (!loaded) {
+        this.reportError(ATTACHMENT_MESSAGES.unreadable(file.name));
+        continue;
+      }
+      const prepared = await this.imageCompressor.prepare(loaded);
+      if (totalBytes + prepared.size > MAX_ATTACHMENTS_TOTAL_BYTES) {
+        this.reportError(ATTACHMENT_MESSAGES.totalTooLarge(file.name));
+        continue;
+      }
+      totalBytes += prepared.size;
       accepted.push({
         id: crypto.randomUUID(),
         name: prepared.name,
@@ -128,6 +141,18 @@ export class Composer {
     this.model.set({ text: '' });
     this.attachments.set([]);
     this.error.set(undefined);
+  }
+
+  private async loadIntoMemory(file: File): Promise<File | undefined> {
+    try {
+      const bytes = await file.arrayBuffer();
+      if (bytes.byteLength === 0) {
+        return undefined;
+      }
+      return new File([bytes], file.name, { type: file.type, lastModified: file.lastModified });
+    } catch {
+      return undefined;
+    }
   }
 
   private reportError(message: string): void {

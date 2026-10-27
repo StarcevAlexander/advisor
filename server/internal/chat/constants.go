@@ -11,9 +11,15 @@ const (
 	MaxOutputTokens   int64 = 4096
 	MaxHistoryTurns         = 20
 	SniffLength             = 512
-	RequestTimeout          = 120 * time.Second
+	RequestTimeout          = 300 * time.Second
 	RefusalReply            = "С этим я помочь не могу. Спросите о чём-нибудь другом."
 	TextAttachmentFmt       = "Файл «%s»:\n%s"
+)
+
+const (
+	InlineAttachmentBudget       = 18 << 20
+	UploadedFileTTLSeconds int64 = 3600
+	FileCleanupTimeout           = 30 * time.Second
 )
 
 const (
@@ -56,5 +62,6 @@ var (
 		"image/gif":  {},
 		"image/webp": {},
 	}
-	pdfMediaType = "application/pdf"
+	pdfMediaType  = "application/pdf"
+	textMediaType = "text/plain"
 )

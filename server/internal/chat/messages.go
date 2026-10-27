@@ -6,18 +6,14 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
-func buildMessages(conversation Conversation) ([]anthropic.MessageParam, error) {
+func buildMessages(conversation Conversation, attachmentBlocks []anthropic.ContentBlockParamUnion) []anthropic.MessageParam {
 	messages := historyMessages(conversation.History)
 
-	attachmentBlocks, err := buildAttachmentBlocks(conversation.Attachments)
-	if err != nil {
-		return nil, err
-	}
 	blocks := attachmentBlocks
 	if text := strings.TrimSpace(conversation.Text); text != "" {
 		blocks = append(blocks, anthropic.NewTextBlock(text))
 	}
-	return append(messages, anthropic.NewUserMessage(blocks...)), nil
+	return append(messages, anthropic.NewUserMessage(blocks...))
 }
 
 func historyMessages(history []Turn) []anthropic.MessageParam {

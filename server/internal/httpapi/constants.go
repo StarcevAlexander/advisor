@@ -48,7 +48,7 @@ const (
 )
 
 const (
-	MaxBodyBytes  int64 = 25 << 20
+	MaxBodyBytes  int64 = 105 << 20
 	MaxFormMemory int64 = 8 << 20
 	MaxFiles            = 8
 	AuthFailDelay       = 400 * time.Millisecond
