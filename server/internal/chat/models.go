@@ -8,8 +8,10 @@ import (
 type Role string
 
 type Turn struct {
-	Role Role   `json:"role"`
-	Text string `json:"text"`
+	Role        Role         `json:"role"`
+	Text        string       `json:"text"`
+	FileNames   []string     `json:"-"`
+	Attachments []Attachment `json:"-"`
 }
 
 type Attachment struct {

@@ -20,6 +20,7 @@ const (
 	InlineAttachmentBudget       = 18 << 20
 	UploadedFileTTLSeconds int64 = 3600
 	FileCleanupTimeout           = 30 * time.Second
+	HistoryFilesFmt              = "[Приложены файлы: %s]"
 )
 
 const (

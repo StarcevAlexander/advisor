@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -17,8 +18,30 @@ type fakeStore struct {
 	store.Noop
 	mu       sync.Mutex
 	messages []store.Message
+	files    []store.StoredFile
 	events   []string
 	errors   []string
+}
+
+func (f *fakeStore) SaveAttachments(_ string, turnID string, files []store.StoredFile) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, file := range files {
+		file.TurnID = turnID
+		f.files = append(f.files, file)
+	}
+}
+
+func (f *fakeStore) Attachments(_ context.Context, _ string, turnIDs []string, maxBytes int) ([]store.StoredFile, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var result []store.StoredFile
+	for _, file := range f.files {
+		if slices.Contains(turnIDs, file.TurnID) && len(file.Data) <= maxBytes {
+			result = append(result, file)
+		}
+	}
+	return result, nil
 }
 
 func (f *fakeStore) SaveMessages(messages []store.Message) {

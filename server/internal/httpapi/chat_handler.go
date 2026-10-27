@@ -18,6 +18,7 @@ import (
 type chatHandler struct {
 	responder chat.Responder
 	recorder  store.Recorder
+	reader    store.Reader
 	logger    *slog.Logger
 }
 
@@ -31,6 +32,13 @@ func (h *chatHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), chat.RequestTimeout)
 	defer cancel()
 
+	conversationID := r.FormValue(FieldConversation)
+	historySource := HistorySourceClient
+	if stored, ok := h.storedHistory(ctx, conversationID); ok {
+		conversation.History = stored
+		historySource = HistorySourceServer
+	}
+
 	reply, err := h.responder.Reply(ctx, conversation)
 	switch {
 	case errors.Is(err, chat.ErrUnsupportedAttachment):
@@ -39,24 +47,33 @@ func (h *chatHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("reply failed", slog.Any("error", err))
 		writeError(w, http.StatusBadGateway, MsgUpstreamFailed)
 	default:
-		h.record(r.FormValue(FieldConversation), conversation, reply)
+		h.record(conversationID, historySource, conversation, reply)
 		writeJSON(w, http.StatusOK, ReplyResponse{Reply: reply})
 	}
 }
 
-func (h *chatHandler) record(conversationID string, conversation chat.Conversation, reply string) {
+func (h *chatHandler) record(conversationID, historySource string, conversation chat.Conversation, reply string) {
 	names := make([]string, 0, len(conversation.Attachments))
+	files := make([]store.StoredFile, 0, len(conversation.Attachments))
 	for _, attachment := range conversation.Attachments {
 		names = append(names, attachment.Name)
+		files = append(files, store.StoredFile{Name: attachment.Name, Data: attachment.Data})
+	}
+	turnID := newTurnID()
+	meta, err := json.Marshal(store.TurnMeta{Turn: turnID})
+	if err != nil {
+		h.logger.Warn("encode turn meta failed", slog.Any("error", err))
 	}
 	now := time.Now()
+	h.recorder.SaveAttachments(conversationID, turnID, files)
 	h.recorder.SaveMessages([]store.Message{
-		{Source: store.SourceApp, ConversationID: conversationID, Role: store.RoleUser, Text: conversation.Text, Attachments: names, CreatedAt: now},
+		{Source: store.SourceApp, ConversationID: conversationID, Role: store.RoleUser, Text: conversation.Text, Attachments: names, Meta: meta, CreatedAt: now},
 		{Source: store.SourceApp, ConversationID: conversationID, Role: store.RoleAssistant, Text: reply, CreatedAt: now.Add(time.Millisecond)},
 	})
 	h.recorder.SaveEvent(store.EventChatRequest, conversationID, map[string]any{
-		"historyTurns": len(conversation.History),
-		"attachments":  len(names),
+		"historyTurns":  len(conversation.History),
+		"historySource": historySource,
+		"attachments":   len(names),
 	})
 }
 

@@ -174,6 +174,53 @@ func (p *Postgres) SaveMessages(messages []Message) {
 	})
 }
 
+func (p *Postgres) SaveAttachments(conversationID, turnID string, files []StoredFile) {
+	if len(files) == 0 {
+		return
+	}
+	p.enqueue(func(ctx context.Context) error {
+		batch := &pgx.Batch{}
+		for _, file := range files {
+			batch.Queue("INSERT INTO attachments (conversation_id, turn_id, name, data) VALUES ($1, $2, $3, $4)",
+				conversationID, turnID, file.Name, file.Data)
+		}
+		results := p.pool.SendBatch(ctx, batch)
+		defer results.Close()
+		for range files {
+			if _, err := results.Exec(); err != nil {
+				return fmt.Errorf("insert attachment: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
+func (p *Postgres) Attachments(ctx context.Context, conversationID string, turnIDs []string, maxBytes int) ([]StoredFile, error) {
+	files := []StoredFile{}
+	if conversationID == "" || len(turnIDs) == 0 {
+		return files, nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, readTimeout)
+	defer cancel()
+
+	rows, err := p.pool.Query(ctx, `SELECT turn_id, name, data FROM attachments
+		WHERE conversation_id = $1 AND turn_id = ANY($2) AND octet_length(data) <= $3
+		ORDER BY id`, conversationID, turnIDs, maxBytes)
+	if err != nil {
+		return nil, fmt.Errorf("query attachments: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var file StoredFile
+		if err := rows.Scan(&file.TurnID, &file.Name, &file.Data); err != nil {
+			return nil, fmt.Errorf("scan attachment: %w", err)
+		}
+		files = append(files, file)
+	}
+	return files, rows.Err()
+}
+
 func (p *Postgres) SaveEvent(kind, ref string, payload any) {
 	data := marshalOrEmpty(payload)
 	p.enqueue(func(ctx context.Context) error {

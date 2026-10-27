@@ -12,6 +12,12 @@ func (Noop) SaveEvent(string, string, any) {}
 func (Noop) SaveError(string, string, any) {}
 func (Noop) Close()                        {}
 
+func (Noop) SaveAttachments(string, string, []StoredFile) {}
+
+func (Noop) Attachments(context.Context, string, []string, int) ([]StoredFile, error) {
+	return []StoredFile{}, nil
+}
+
 func (Noop) Messages(context.Context, MessageFilter) ([]Message, error) {
 	return []Message{}, nil
 }

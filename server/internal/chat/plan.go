@@ -11,7 +11,7 @@ import (
 )
 
 func (c *Claude) Plan(ctx context.Context, request string, history []Turn) (Plan, error) {
-	messages := append(historyMessages(history), anthropic.NewUserMessage(anthropic.NewTextBlock(request)))
+	messages := append(historyMessages(history, noTurnBlocks), anthropic.NewUserMessage(anthropic.NewTextBlock(request)))
 	response, err := c.client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:        c.model,
 		MaxTokens:    PlanMaxOutputTokens,

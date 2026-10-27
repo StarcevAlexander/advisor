@@ -39,6 +39,16 @@ func classifyAttachments(attachments []Attachment) ([]classifiedAttachment, erro
 	return classified, nil
 }
 
+func classifySupported(attachments []Attachment) []classifiedAttachment {
+	classified := make([]classifiedAttachment, 0, len(attachments))
+	for _, attachment := range attachments {
+		if item, err := classifyAttachment(attachment); err == nil {
+			classified = append(classified, item)
+		}
+	}
+	return classified
+}
+
 func classifyAttachment(attachment Attachment) (classifiedAttachment, error) {
 	if len(attachment.Data) == 0 {
 		return classifiedAttachment{}, ErrUnsupportedAttachment
@@ -63,13 +73,13 @@ func buildAttachmentBlocks(
 	ctx context.Context,
 	attachments []classifiedAttachment,
 	upload fileUploader,
+	inlineBudget *int,
 ) ([]anthropic.ContentBlockParamUnion, []string, error) {
 	blocks := make([]anthropic.ContentBlockParamUnion, 0, len(attachments))
 	var uploaded []string
-	var inlineBytes int
 	for _, attachment := range attachments {
-		if inlineBytes+len(attachment.Data) <= InlineAttachmentBudget {
-			inlineBytes += len(attachment.Data)
+		if len(attachment.Data) <= *inlineBudget {
+			*inlineBudget -= len(attachment.Data)
 			blocks = append(blocks, inlineBlock(attachment))
 			continue
 		}

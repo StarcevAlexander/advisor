@@ -34,6 +34,16 @@ type ErrorEntry struct {
 	CreatedAt time.Time       `json:"createdAt"`
 }
 
+type TurnMeta struct {
+	Turn string `json:"turn,omitempty"`
+}
+
+type StoredFile struct {
+	TurnID string
+	Name   string
+	Data   []byte
+}
+
 type MessageFilter struct {
 	Source         string
 	ConversationID string
@@ -44,12 +54,14 @@ type Recorder interface {
 	SaveMessages(messages []Message)
 	SaveEvent(kind, ref string, payload any)
 	SaveError(source, message string, details any)
+	SaveAttachments(conversationID, turnID string, files []StoredFile)
 }
 
 type Reader interface {
 	Messages(ctx context.Context, filter MessageFilter) ([]Message, error)
 	Events(ctx context.Context, kind string, limit int) ([]Event, error)
 	Errors(ctx context.Context, limit int) ([]ErrorEntry, error)
+	Attachments(ctx context.Context, conversationID string, turnIDs []string, maxBytes int) ([]StoredFile, error)
 }
 
 type Store interface {

@@ -21,10 +21,11 @@ func TestHistoryMessages(t *testing.T) {
 		{name: "blank turns skipped", history: []Turn{{Role: RoleUser, Text: "  "}, {Role: RoleUser, Text: "q"}}, want: 1},
 		{name: "unknown role skipped", history: []Turn{{Role: "system", Text: "x"}, {Role: RoleUser, Text: "q"}}, want: 1},
 		{name: "capped", history: longHistory, want: MaxHistoryTurns},
+		{name: "file-only turn kept with reply", history: []Turn{{Role: RoleUser, FileNames: []string{"pic.jpg"}}, {Role: RoleAssistant, Text: "на фото стих"}}, want: 2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := len(historyMessages(tt.history)); got != tt.want {
+			if got := len(historyMessages(tt.history, noTurnBlocks)); got != tt.want {
 				t.Errorf("len = %d, want %d", got, tt.want)
 			}
 		})

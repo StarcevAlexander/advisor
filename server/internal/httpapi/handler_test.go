@@ -235,3 +235,46 @@ func TestHealth(t *testing.T) {
 		t.Errorf("status = %d", recorder.Code)
 	}
 }
+
+func TestChatUsesStoredHistoryWithFiles(t *testing.T) {
+	history := &fakeStore{}
+	responder := &fakeResponder{reply: "Это мем со стихом."}
+	handler := NewHandler(Options{
+		Responder:      responder,
+		Password:       testPassword,
+		AllowedOrigins: []string{testOrigin},
+		Store:          history,
+		Logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	first := postChat(t, handler, testPassword,
+		map[string]string{FieldConversation: "conv-1"},
+		[]formFile{{name: "meme.txt", data: []byte("стих на картинке")}},
+	)
+	if first.Code != http.StatusOK {
+		t.Fatalf("first status = %d, body = %s", first.Code, first.Body)
+	}
+
+	responder.reply = "Перевод такой."
+	second := postChat(t, handler, testPassword,
+		map[string]string{FieldConversation: "conv-1", FieldText: "переведи стих", FieldHistory: "[]"},
+		nil,
+	)
+	if second.Code != http.StatusOK {
+		t.Fatalf("second status = %d, body = %s", second.Code, second.Body)
+	}
+
+	turns := responder.conversation.History
+	if len(turns) != 2 {
+		t.Fatalf("history = %d turns, want stored user + assistant", len(turns))
+	}
+	if turns[0].Role != chat.RoleUser || len(turns[0].FileNames) != 1 || turns[0].FileNames[0] != "meme.txt" {
+		t.Errorf("user turn = %+v", turns[0])
+	}
+	if len(turns[0].Attachments) != 1 || string(turns[0].Attachments[0].Data) != "стих на картинке" {
+		t.Errorf("user turn attachments = %+v", turns[0].Attachments)
+	}
+	if turns[1].Role != chat.RoleAssistant || turns[1].Text != "Это мем со стихом." {
+		t.Errorf("assistant turn = %+v", turns[1])
+	}
+}

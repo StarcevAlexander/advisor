@@ -1,41 +1,62 @@
 package chat
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
-func buildMessages(conversation Conversation, attachmentBlocks []anthropic.ContentBlockParamUnion) []anthropic.MessageParam {
-	messages := historyMessages(conversation.History)
+type turnBlocksBuilder func(turn Turn) []anthropic.ContentBlockParamUnion
 
+func buildMessages(history []anthropic.MessageParam, text string, attachmentBlocks []anthropic.ContentBlockParamUnion) []anthropic.MessageParam {
 	blocks := attachmentBlocks
-	if text := strings.TrimSpace(conversation.Text); text != "" {
+	if text := strings.TrimSpace(text); text != "" {
 		blocks = append(blocks, anthropic.NewTextBlock(text))
 	}
-	return append(messages, anthropic.NewUserMessage(blocks...))
+	return append(history, anthropic.NewUserMessage(blocks...))
 }
 
-func historyMessages(history []Turn) []anthropic.MessageParam {
+func historyMessages(history []Turn, attachmentBlocks turnBlocksBuilder) []anthropic.MessageParam {
 	if len(history) > MaxHistoryTurns {
 		history = history[len(history)-MaxHistoryTurns:]
 	}
 
 	messages := make([]anthropic.MessageParam, 0, len(history))
 	for _, turn := range history {
-		text := strings.TrimSpace(turn.Text)
-		if text == "" {
-			continue
-		}
+		text := turnText(turn)
 		switch turn.Role {
 		case RoleUser:
-			messages = append(messages, anthropic.NewUserMessage(anthropic.NewTextBlock(text)))
+			blocks := attachmentBlocks(turn)
+			if text != "" {
+				blocks = append(blocks, anthropic.NewTextBlock(text))
+			}
+			if len(blocks) == 0 {
+				continue
+			}
+			messages = append(messages, anthropic.NewUserMessage(blocks...))
 		case RoleAssistant:
-			if len(messages) == 0 {
+			if text == "" || len(messages) == 0 {
 				continue
 			}
 			messages = append(messages, anthropic.NewAssistantMessage(anthropic.NewTextBlock(text)))
 		}
 	}
 	return messages
+}
+
+func turnText(turn Turn) string {
+	text := strings.TrimSpace(turn.Text)
+	if turn.Role != RoleUser || len(turn.FileNames) == 0 {
+		return text
+	}
+	marker := fmt.Sprintf(HistoryFilesFmt, strings.Join(turn.FileNames, ", "))
+	if text == "" {
+		return marker
+	}
+	return marker + "\n" + text
+}
+
+func noTurnBlocks(Turn) []anthropic.ContentBlockParamUnion {
+	return nil
 }

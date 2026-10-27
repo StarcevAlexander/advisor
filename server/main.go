@@ -20,8 +20,8 @@ import (
 
 const (
 	readHeaderTimeout = 10 * time.Second
-	readTimeout       = 60 * time.Second
-	writeTimeout      = 150 * time.Second
+	readTimeout       = 10 * time.Minute
+	writeTimeout      = 15 * time.Minute
 	idleTimeout       = 120 * time.Second
 	shutdownTimeout   = 10 * time.Second
 

@@ -29,12 +29,26 @@ func (c *Claude) Reply(ctx context.Context, conversation Conversation) (string, 
 	if err != nil {
 		return "", err
 	}
-	attachmentBlocks, uploaded, err := buildAttachmentBlocks(ctx, classified, c.uploadFile)
-	defer c.deleteFiles(uploaded)
+
+	var uploaded []string
+	defer func() { c.deleteFiles(uploaded) }()
+	inlineBudget := InlineAttachmentBudget
+	attachmentBlocks, fileIDs, err := buildAttachmentBlocks(ctx, classified, c.uploadFile, &inlineBudget)
+	uploaded = append(uploaded, fileIDs...)
 	if err != nil {
 		return "", err
 	}
-	messages := buildMessages(conversation, attachmentBlocks)
+
+	history := historyMessages(conversation.History, func(turn Turn) []anthropic.ContentBlockParamUnion {
+		blocks, fileIDs, err := buildAttachmentBlocks(ctx, classifySupported(turn.Attachments), c.uploadFile, &inlineBudget)
+		uploaded = append(uploaded, fileIDs...)
+		if err != nil {
+			slog.Warn("history attachments skipped", slog.Any("error", err))
+			return nil
+		}
+		return blocks
+	})
+	messages := buildMessages(history, conversation.Text, attachmentBlocks)
 
 	response, err := c.client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:        c.model,

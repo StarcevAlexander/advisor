@@ -59,6 +59,14 @@ const (
 )
 
 const (
+	ContextAttachmentTurns    = 3
+	HistoryAttachmentMaxBytes = 5 << 20
+	TurnIDBytes               = 16
+	HistorySourceServer       = "server"
+	HistorySourceClient       = "client"
+)
+
+const (
 	MsgUnauthorized    = "Неверный пароль"
 	MsgBadRequest      = "Не удалось разобрать запрос"
 	MsgBadHistory      = "Не удалось разобрать историю беседы"

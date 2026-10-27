@@ -15,6 +15,7 @@ import {
   CHANGE_STATE_TEXT,
   CHANGE_TRACKED_STATES,
   ROLLBACK_STATE_TEXT,
+  HISTORY_FILES_MARKER,
   MAX_HISTORY_TURNS,
   WELCOME_TEXT,
 } from '../constants';
@@ -443,8 +444,18 @@ export class Chat {
 
   private contextTurns(messages: ChatMessage[]): ApiTurn[] {
     return messages
-      .filter((message) => !message.pending && !message.failed && message.text.trim().length > 0)
-      .map((message) => ({ role: message.role, text: this.editTurnText(message) }));
+      .map((message) => ({ message, text: this.turnText(message) }))
+      .filter(({ message, text }) => !message.pending && !message.failed && text.length > 0)
+      .map(({ message, text }) => ({ role: message.role, text }));
+  }
+
+  private turnText(message: ChatMessage): string {
+    const text = this.editTurnText(message);
+    if (message.role !== 'user' || message.attachments.length === 0) {
+      return text;
+    }
+    const marker = HISTORY_FILES_MARKER(message.attachments.map((attachment) => attachment.name));
+    return text ? `${marker}\n${text}` : marker;
   }
 
   private buildHistory(): ApiTurn[] {

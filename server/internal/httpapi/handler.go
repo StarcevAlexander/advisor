@@ -30,6 +30,7 @@ func NewHandler(options Options) http.Handler {
 	mux.Handle(ChatRoute, withPassword(options.Password, &chatHandler{
 		responder: options.Responder,
 		recorder:  history,
+		reader:    history,
 		logger:    logger,
 	}))
 	mux.Handle(ChangeRoute, withPassword(options.Password, &changeHandler{
