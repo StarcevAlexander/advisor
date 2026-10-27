@@ -4,7 +4,7 @@
 
 | | post_helper | советчик |
 |---|---|---|
-| Порт сервера | 8080 | 8081 |
+| Порт сервера | 8080 | 8082 |
 | Публичный адрес | `https://interceptor.tail969ed0.ts.net` | `https://interceptor.tail969ed0.ts.net:8443` |
 | База | схема `public` базы `posthelper` | схема `advisor` той же базы |
 | Задача автозапуска | `PostHelperServer` | `AdvisorServer` |

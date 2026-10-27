@@ -4,4 +4,5 @@ export * from './chat.constants';
 export * from './error-log.constants';
 export * from './notification.constants';
 export * from './request-log.constants';
+export * from './speech.constants';
 export * from './theme.constants';

@@ -5,7 +5,7 @@ param(
 )
 
 $TaskName = 'AdvisorServer'
-$Port = 8081
+$Port = 8082
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $ServerDir = Join-Path $Repo 'server'
 $Exe = Join-Path $ServerDir 'advisor.exe'

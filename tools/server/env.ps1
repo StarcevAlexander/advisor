@@ -7,7 +7,7 @@ $EnvFile = Join-Path $Repo 'server\.env'
 $PostHelperDbUrlFile = 'C:\post-helper-db\database-url.txt'
 $PsqlExe = 'C:\post-helper-db\env\Library\bin\psql.exe'
 $Schema = 'advisor'
-$Port = '8081'
+$Port = '8082'
 
 function New-Secret($length) {
   $chars = (48..57) + (65..90) + (97..122)

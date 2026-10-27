@@ -2,6 +2,7 @@ import { Service, inject, signal } from '@angular/core';
 import { SPEECH_LANG } from '../constants';
 import { Recognition, RecognitionConstructor } from '../models';
 import { ErrorLog } from './error-log';
+import { toSpeechText } from './speech-text';
 
 @Service()
 export class Speech {
@@ -59,7 +60,7 @@ export class Speech {
     }
     this.stopSpeaking();
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(toSpeechText(text));
     utterance.lang = SPEECH_LANG;
     const voice = speechSynthesis
       .getVoices()
