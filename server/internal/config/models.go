@@ -3,6 +3,7 @@ package config
 type Config struct {
 	Port           string
 	APIKey         string
+	BaseURL        string
 	AccessPassword string
 	AllowedOrigins []string
 	Model          string

@@ -2,7 +2,8 @@ package config
 
 const (
 	EnvPort           = "PORT"
-	EnvAPIKey         = "ANTHROPIC_API_KEY"
+	EnvAPIKey         = "ZAI_API_KEY"
+	EnvBaseURL        = "ZAI_BASE_URL"
 	EnvAccessPassword = "ACCESS_PASSWORD"
 	EnvAllowedOrigins = "ALLOWED_ORIGINS"
 	EnvModel          = "ADVISOR_MODEL"
@@ -12,7 +13,8 @@ const (
 	EnvGitHubAPIURL   = "GITHUB_API_URL"
 	EnvDatabaseURL    = "DATABASE_URL"
 	DefaultPort       = "8080"
-	DefaultModel      = "claude-sonnet-5-5"
+	DefaultBaseURL    = "https://api.z.ai/api/anthropic"
+	DefaultModel      = "glm-5.3"
 	MinPasswordLength = 8
 	DotEnvFileName    = ".env"
 )

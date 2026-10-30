@@ -71,10 +71,10 @@ func run() error {
 		})
 	}
 
-	claude := chat.NewClaude(cfg.APIKey, cfg.Model)
+	zai := chat.NewZai(cfg.APIKey, cfg.BaseURL, cfg.Model)
 	handler := httpapi.NewHandler(httpapi.Options{
-		Responder:      claude,
-		Planner:        claude,
+		Responder:      zai,
+		Planner:        zai,
 		Changes:        changeRequester,
 		Password:       cfg.AccessPassword,
 		AllowedOrigins: cfg.AllowedOrigins,

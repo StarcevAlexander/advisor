@@ -43,6 +43,8 @@ func (h *chatHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, chat.ErrUnsupportedAttachment):
 		writeError(w, http.StatusUnsupportedMediaType, MsgUnsupportedFile)
+	case errors.Is(err, chat.ErrAttachmentTooLarge):
+		writeError(w, http.StatusRequestEntityTooLarge, MsgTooLarge)
 	case err != nil:
 		h.logger.Error("reply failed", slog.Any("error", err))
 		writeError(w, http.StatusBadGateway, MsgUpstreamFailed)

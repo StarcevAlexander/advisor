@@ -18,8 +18,8 @@ const (
 	MaxChangeBodyBytes      int64 = 16 << 10
 	MaxPlanBodyBytes        int64 = 128 << 10
 	MaxChangeRequestRunes         = 2000
-	RollbackAcceptedMessage       = "Откат принят. Он вернёт последнюю правку Claude и выложит результат за пару минут."
-	ChangeAcceptedMessage         = "Заявка принята. Claude подготовит изменение за несколько минут. Когда оно появится в списке, проверьте и примите его."
+	RollbackAcceptedMessage       = "Откат принят. Он вернёт последнюю правку и выложит результат за пару минут."
+	ChangeAcceptedMessage         = "Заявка принята. ИИ подготовит изменение за несколько минут. Когда оно появится в списке, проверьте и примите его."
 )
 
 const (

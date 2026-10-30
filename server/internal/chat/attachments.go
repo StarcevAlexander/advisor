@@ -1,7 +1,6 @@
 package chat
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -24,8 +23,6 @@ type classifiedAttachment struct {
 	kind      attachmentKind
 	mediaType string
 }
-
-type fileUploader func(ctx context.Context, attachment classifiedAttachment) (string, error)
 
 func classifyAttachments(attachments []Attachment) ([]classifiedAttachment, error) {
 	classified := make([]classifiedAttachment, 0, len(attachments))
@@ -70,27 +67,18 @@ func classifyAttachment(attachment Attachment) (classifiedAttachment, error) {
 }
 
 func buildAttachmentBlocks(
-	ctx context.Context,
 	attachments []classifiedAttachment,
-	upload fileUploader,
 	inlineBudget *int,
-) ([]anthropic.ContentBlockParamUnion, []string, error) {
+) ([]anthropic.ContentBlockParamUnion, error) {
 	blocks := make([]anthropic.ContentBlockParamUnion, 0, len(attachments))
-	var uploaded []string
 	for _, attachment := range attachments {
-		if len(attachment.Data) <= *inlineBudget {
-			*inlineBudget -= len(attachment.Data)
-			blocks = append(blocks, inlineBlock(attachment))
-			continue
+		if len(attachment.Data) > *inlineBudget {
+			return nil, fmt.Errorf("%s: %w", attachment.Name, ErrAttachmentTooLarge)
 		}
-		fileID, err := upload(ctx, attachment)
-		if err != nil {
-			return nil, uploaded, fmt.Errorf("upload %s: %w", attachment.Name, err)
-		}
-		uploaded = append(uploaded, fileID)
-		blocks = append(blocks, fileBlock(attachment.kind, fileID))
+		*inlineBudget -= len(attachment.Data)
+		blocks = append(blocks, inlineBlock(attachment))
 	}
-	return blocks, uploaded, nil
+	return blocks, nil
 }
 
 func inlineBlock(attachment classifiedAttachment) anthropic.ContentBlockParamUnion {
@@ -102,11 +90,4 @@ func inlineBlock(attachment classifiedAttachment) anthropic.ContentBlockParamUni
 	default:
 		return anthropic.NewTextBlock(fmt.Sprintf(TextAttachmentFmt, attachment.Name, attachment.Data))
 	}
-}
-
-func fileBlock(kind attachmentKind, fileID string) anthropic.ContentBlockParamUnion {
-	if kind == kindImage {
-		return anthropic.NewImageBlock(anthropic.FileImageSourceParam{FileID: fileID})
-	}
-	return anthropic.NewDocumentBlock(anthropic.FileDocumentSourceParam{FileID: fileID})
 }

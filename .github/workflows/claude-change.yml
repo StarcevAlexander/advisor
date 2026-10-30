@@ -58,22 +58,22 @@ jobs:
         working-directory: web
         run: npm ci
 
-      - name: Install Claude Code
-        run: npm install -g @anthropic-ai/claude-code
+      - name: Install OpenCode
+        run: npm install -g opencode-ai
 
-      - name: Let Claude edit the app
+      - name: Let the AI edit the app
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
         run: |
           cat > "$RUNNER_TEMP/prompt.txt" <<'PROMPT'
           You are changing a small personal voice advisor: an Angular 22 PWA in web/ and a Go server with a Postgres database in server/. Your working directory is the repository root.
           Make exactly the change described in the request below and nothing else.
           Rules:
           - Allowed to edit: web/src/, web/public/, and server/ (Go code and new SQL migrations).
-          - Never touch: package.json, lock files, angular.json, web/scripts/, go.mod, go.sum, .github/, render.yaml, scripts/, any .env file, or anything else outside the allowed folders. Do not add dependencies.
+          - Never touch: package.json, lock files, angular.json, web/scripts/, go.mod, go.sum, .github/, opencode.json, render.yaml, scripts/, any .env file, or anything else outside the allowed folders. Do not add dependencies.
           - Database changes are made only by adding a NEW migration file in server/internal/store/migrations/ named NNN_short_name.sql with the next free number. Never edit or delete an existing migration. Migrations must only add things (CREATE TABLE, ADD COLUMN, CREATE INDEX): no DROP, TRUNCATE, DELETE, or anything that erases data.
           - Never weaken password checking, CORS, logging of errors, or storage of history. Never print or store secrets.
-          - Frontend: follow web/CLAUDE.md and match neighbouring code: signals, inject(), @if/@for, separate .html and .scss files, types in models/, constants in constants/. Keep all user-visible text in Russian.
+          - Frontend: follow web/AGENTS.md and match neighbouring code: signals, inject(), @if/@for, separate .html and .scss files, types in models/, constants in constants/. Keep all user-visible text in Russian.
           - Backend: match neighbouring Go code: types in models.go, constants in constants.go, handlers in internal/httpapi, database code in internal/store.
           - Do not write code comments.
           - After editing run the checks for what you changed and fix any failure you caused: "npm --prefix web test -- --watch=false" and "npm --prefix web run build" for the frontend; "go -C server vet ./...", "go -C server test ./..." and "go -C server build ./..." for the server.
@@ -81,11 +81,8 @@ jobs:
           - Finish with a short plain summary in Russian of what you changed, without code.
           PROMPT
           printf '\nRequest (in Russian):\n%s\n' "$REQUEST" >> "$RUNNER_TEMP/prompt.txt"
-          claude -p "$(cat "$RUNNER_TEMP/prompt.txt")" \
-            --model claude-sonnet-5-5 \
-            --max-turns 80 \
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm --prefix web test:*),Bash(npm --prefix web run build:*),Bash(go -C server vet:*),Bash(go -C server test:*),Bash(go -C server build:*)" \
-            | tee "$RUNNER_TEMP/claude-summary.txt"
+          opencode run --auto --model zai/glm-5.3 "$(cat "$RUNNER_TEMP/prompt.txt")" \
+            | tee "$RUNNER_TEMP/ai-summary.txt"
 
       - name: Enforce allowed paths
         id: diff
@@ -93,8 +90,8 @@ jobs:
           git add -A
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "Claude made no changes:"
-            cat "$RUNNER_TEMP/claude-summary.txt"
+            echo "The AI made no changes:"
+            cat "$RUNNER_TEMP/ai-summary.txt"
             exit 0
           fi
 
@@ -102,7 +99,7 @@ jobs:
           protected=$(git diff --cached --name-only | grep -E '^server/(go\.mod|go\.sum)$|(^|/)\.env' || true)
           forbidden=$(printf '%s\n%s' "$outside" "$protected" | sed '/^$/d')
           if [ -n "$forbidden" ]; then
-            echo "::error::Claude touched files outside the allowed paths:"
+            echo "::error::The AI touched files outside the allowed paths:"
             echo "$forbidden"
             exit 1
           fi
@@ -179,9 +176,9 @@ jobs:
             echo
             printf '> %s\n' "$REQUEST"
             echo
-            echo "Что сделал Claude:"
+            echo "Что сделал ИИ:"
             echo
-            cat "$RUNNER_TEMP/claude-summary.txt"
+            cat "$RUNNER_TEMP/ai-summary.txt"
             echo
             if [ "$CHECK_OUTCOME" = "success" ]; then
               if [ "$SERVER_CHANGED" = "true" ]; then

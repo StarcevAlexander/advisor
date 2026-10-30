@@ -12,6 +12,7 @@ func Load() (Config, error) {
 	cfg := Config{
 		Port:           valueOr(os.Getenv(EnvPort), DefaultPort),
 		APIKey:         strings.TrimSpace(os.Getenv(EnvAPIKey)),
+		BaseURL:        valueOr(strings.TrimSpace(os.Getenv(EnvBaseURL)), DefaultBaseURL),
 		AccessPassword: os.Getenv(EnvAccessPassword),
 		AllowedOrigins: parseList(os.Getenv(EnvAllowedOrigins), DefaultAllowedOrigins),
 		Model:          valueOr(os.Getenv(EnvModel), DefaultModel),

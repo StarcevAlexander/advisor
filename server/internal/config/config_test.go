@@ -14,12 +14,13 @@ func TestLoad(t *testing.T) {
 		t.Setenv(EnvPort, "")
 		t.Setenv(EnvAllowedOrigins, "")
 		t.Setenv(EnvModel, "")
+		t.Setenv(EnvBaseURL, "")
 
 		cfg, err := Load()
 		if err != nil {
 			t.Fatalf("Load: %v", err)
 		}
-		if cfg.Port != DefaultPort || cfg.Model != DefaultModel {
+		if cfg.Port != DefaultPort || cfg.Model != DefaultModel || cfg.BaseURL != DefaultBaseURL {
 			t.Errorf("cfg = %+v", cfg)
 		}
 		if !slices.Equal(cfg.AllowedOrigins, DefaultAllowedOrigins) {

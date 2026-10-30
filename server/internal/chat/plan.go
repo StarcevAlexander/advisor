@@ -10,17 +10,16 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
-func (c *Claude) Plan(ctx context.Context, request string, history []Turn) (Plan, error) {
+func (z *Zai) Plan(ctx context.Context, request string, history []Turn) (Plan, error) {
 	messages := append(historyMessages(history, noTurnBlocks), anthropic.NewUserMessage(anthropic.NewTextBlock(request)))
-	response, err := c.client.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:        c.model,
-		MaxTokens:    PlanMaxOutputTokens,
-		System:       []anthropic.TextBlockParam{{Text: PlanSystemPrompt}},
-		OutputConfig: anthropic.OutputConfigParam{Effort: anthropic.OutputConfigEffortMedium},
-		Messages:     messages,
+	response, err := z.client.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:     z.model,
+		MaxTokens: PlanMaxOutputTokens,
+		System:    []anthropic.TextBlockParam{{Text: PlanSystemPrompt}},
+		Messages:  messages,
 	})
 	if err != nil {
-		return Plan{}, fmt.Errorf("claude plan request: %w", err)
+		return Plan{}, fmt.Errorf("zai plan request: %w", err)
 	}
 
 	if response.StopReason == anthropic.StopReasonRefusal {

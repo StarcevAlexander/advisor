@@ -40,6 +40,7 @@ type Planner interface {
 
 var (
 	ErrUnsupportedAttachment = errors.New("unsupported attachment")
+	ErrAttachmentTooLarge    = errors.New("attachment too large")
 	ErrEmptyReply            = errors.New("empty reply")
 	ErrBadPlan               = errors.New("bad plan")
 )

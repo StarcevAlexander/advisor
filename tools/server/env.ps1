@@ -21,9 +21,9 @@ if (Test-Path $EnvFile) {
   }
 }
 
-if (-not $values['ANTHROPIC_API_KEY'] -and -not $NonInteractive) {
-  $secure = Read-Host -Prompt 'ANTHROPIC_API_KEY' -AsSecureString
-  $values['ANTHROPIC_API_KEY'] = [System.Net.NetworkCredential]::new('', $secure).Password
+if (-not $values['ZAI_API_KEY'] -and -not $NonInteractive) {
+  $secure = Read-Host -Prompt 'ZAI_API_KEY' -AsSecureString
+  $values['ZAI_API_KEY'] = [System.Net.NetworkCredential]::new('', $secure).Password
 }
 
 if (-not (Test-Path $PostHelperDbUrlFile)) {
