@@ -100,7 +100,7 @@ jobs:
             echo "$forbidden"
             exit 1
           fi
-          if printf '%s\n' "$changed_files" | grep -q -E '^server/internal/store/migrations/'; then
+          if printf '%s\n' "$changed_files" | grep -q -E '^server/migrations/'; then
             echo "::error::The change added a database migration. Git cannot undo the database, roll this one back by hand."
             exit 1
           fi
@@ -110,11 +110,13 @@ jobs:
           fi
           echo "SERVER_CHANGED=$server_changed" >> "$GITHUB_ENV"
 
-      - uses: actions/setup-go@v5
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.pick.outputs.changed == 'true'
+
+      - uses: Swatinem/rust-cache@v2
         if: steps.pick.outputs.changed == 'true'
         with:
-          go-version-file: server/go.mod
-          cache-dependency-path: server/go.sum
+          workspaces: server
 
       - name: Install app dependencies
         if: steps.pick.outputs.changed == 'true'
@@ -129,9 +131,11 @@ jobs:
           npm --prefix web test -- --watch=false
           npm --prefix web run build
           if [ "$SERVER_CHANGED" = "true" ]; then
-            go -C server vet ./...
-            go -C server test ./...
-            go -C server build -o /dev/null .
+            cd server
+            cargo fmt --check
+            cargo clippy --all-targets -- -D warnings
+            cargo test
+            cargo build
           fi
 
       - name: Open the pull request and publish

@@ -1,0 +1,32 @@
+[package]
+name = "advisor"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+async-trait = "0.1"
+axum = { version = "0.8", features = ["multipart"] }
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+deadpool-postgres = { version = "0.14", features = ["rt_tokio_1"] }
+hyper-util = { version = "0.1", features = ["tokio", "server", "server-auto", "server-graceful", "http1", "service"] }
+infer = "0.16"
+rand = "0.9"
+reqwest = { version = "0.12", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+subtle = "2"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tokio-postgres = { version = "0.7", features = ["with-serde_json-1", "with-chrono-0_4"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["catch-panic", "cors"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+
+[profile.release]
+lto = "thin"

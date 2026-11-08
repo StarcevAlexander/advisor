@@ -8,3 +8,5 @@ server/advisor.exe
 server/advisor
 .idea/
 server/server.log
+server/target/
+.zcode/

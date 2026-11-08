@@ -1,24 +1,26 @@
 # Советчик
 
-Личный голосовой советчик: большая кнопка записи, текстовый чат, вложения файлов и фото, озвучка ответов. Фронт: Angular 22 PWA (`web/`). Сервер с ИИ z.ai (GLM): Go (`server/`).
+Личный голосовой советчик: большая кнопка записи, текстовый чат, вложения файлов и фото, озвучка ответов. Фронт: Angular 22 PWA (`web/`). Сервер с ИИ z.ai (GLM): Rust (`server/`).
 
 ## Сервер (из `server/`)
 
 ```bash
-go run .           # слушает :8080, читает server/.env
-go test ./...      # юнит-тесты
+cargo run              # слушает :8080, читает server/.env
+cargo test             # юнит-тесты
+cargo clippy --all-targets
 ```
 
 Переменные окружения (локально можно в `server/.env`, на хостинге в его настройках):
 
 | Переменная | Назначение |
 |---|---|
-| `ZAI_API_KEY` | ключ z.ai (кодинг-план или обычный API-ключ), обязателен |
+| `ZAI_API_KEY` | ключ z.ai (Standard API-ключ pay-as-you-go, общий с post_helper), обязателен |
 | `ACCESS_PASSWORD` | пароль доступа, не короче 8 символов, обязателен |
 | `PORT` | порт, по умолчанию 8080 (хостинг задаёт сам) |
 | `ALLOWED_ORIGINS` | адреса фронта через запятую для CORS, по умолчанию Pages и localhost:4200 |
-| `ADVISOR_MODEL` | модель, по умолчанию `glm-5.3` (также есть `glm-5.3-flash`) |
-| `ZAI_BASE_URL` | Anthropic-совместимый эндпоинт z.ai, по умолчанию `https://api.z.ai/api/anthropic` |
+| `ADVISOR_MODEL` | текстовая модель, по умолчанию `glm-5.3` |
+| `ADVISOR_VISION_MODEL` | модель для запросов с картинками и PDF, по умолчанию `glm-5.3-flash` (зрение умеет только Flash) |
+| `ZAI_BASE_URL` | OpenAI-совместимый эндпоинт z.ai, по умолчанию `https://api.z.ai/api/paas/v4` |
 | `GITHUB_TOKEN` | токен для запуска правок приложения из чата, необязателен (см. раздел «Правка приложения из чата») |
 | `DATABASE_URL` | строка подключения Postgres (Neon) для истории и журнала ошибок, необязательна: без неё сервер работает, но ничего не сохраняет (см. раздел «История и журнал ошибок») |
 
@@ -28,7 +30,7 @@ API: `POST /api/chat` (multipart: `text`, `history` как JSON `[{role,text}]`,
 
 ## История и журнал ошибок (Postgres)
 
-Сервер пишет в Postgres, если задана `DATABASE_URL` (бесплатная база на Neon, строка вида `postgres://user:pass@host/db?sslmode=require`). Таблицы создаются сами при старте из `server/internal/store/migrations/*.sql` (применённые миграции помнит таблица `schema_migrations`). Запись идёт в фоне: если база недоступна, чат продолжает работать, а в логе сервера появляется предупреждение.
+Сервер пишет в Postgres, если задана `DATABASE_URL` (база вида `postgres://user:pass@host/db?sslmode=require`; параметр `search_path=advisor` задаёт схему). Таблицы создаются сами при старте из `server/migrations/*.sql` (применённые миграции помнит таблица `schema_migrations`). Запись идёт в фоне: если база недоступна, чат продолжает работать, а в логе сервера появляется предупреждение.
 
 | Таблица | Что хранит |
 |---|---|
@@ -56,15 +58,15 @@ ADVISOR_URL=https://interceptor.tail969ed0.ts.net:8443 ADVISOR_PASSWORD=... node
 
 ## Правка приложения из чата
 
-Кнопка «Править» в шапке включает режим на одно сообщение (можно голосом): текст уходит на `POST /api/change`, сервер запускает workflow `.github/workflows/claude-change.yml` через GitHub API. Workflow ставит OpenCode (открытый агент для кодинга) и работает через z.ai: эндпоинт `https://api.z.ai/api/anthropic`, модель `glm-5.3`, ключ из секрета `ZAI_API_KEY`, конфиг в `opencode.json`. ИИ правит только `web/src` и `web/public`, затем независимо прогоняются тесты и сборка, а ветка `claude/change-<id>` и pull request создаются самим workflow (если тесты или сборка упали, PR будет черновиком). Статус заявки виден прямо в чате и обновляется сам (приложение опрашивает `GET /api/change/{id}`): ждёт очереди, ИИ работает, готово (ссылка на pull request), принято, закрыто, не получилось (ссылка на журнал запуска), ничего не изменено. Заявку и её запуск связывает номер `id`, который сервер генерирует и передаёт в workflow (имя запуска `Claude change <id>`, ветка `claude/change-<id>`); незавершённые заявки продолжают отслеживаться после перезапуска приложения. Изменение попадает на сайт только после того, как вы нажмёте Merge: пуш в `master` запускает обычную публикацию. Файлы в режиме правки не принимаются, сервер без `GITHUB_TOKEN` отвечает 501.
+Кнопка «Править» в шапке включает режим на одно сообщение (можно голосом): текст уходит на `POST /api/change`, сервер запускает workflow `.github/workflows/claude-change.yml` через GitHub API. Workflow ставит OpenCode (открытый агент для кодинга) и работает через z.ai: модель `glm-5.3`, ключ из секрета `ZAI_API_KEY`, конфиг в `opencode.json`. ИИ правит только `web/src` и `web/public`, затем независимо прогоняются тесты и сборка, а ветка `claude/change-<id>` и pull request создаются самим workflow (если тесты или сборка упали, PR будет черновиком). Статус заявки виден прямо в чате и обновляется сам (приложение опрашивает `GET /api/change/{id}`): ждёт очереди, ИИ работает, готово (ссылка на pull request), принято, закрыто, не получилось (ссылка на журнал запуска), ничего не изменено. Заявку и её запуск связывает номер `id`, который сервер генерирует и передаёт в workflow (имя запуска `Claude change <id>`, ветка `claude/change-<id>`); незавершённые заявки продолжают отслеживаться после перезапуска приложения. Изменение попадает на сайт только после того, как вы нажмёте Merge: пуш в `master` запускает обычную публикацию. Файлы в режиме правки не принимаются, сервер без `GITHUB_TOKEN` отвечает 501.
 
 Настройка один раз:
 
 1. Секрет репозитория `ZAI_API_KEY` (ключ z.ai из `server/.env`): `gh secret set -f server/.env` (загрузит все ключи из файла, лишние секреты не мешают). Старый секрет `ANTHROPIC_API_KEY` можно удалить: `gh secret delete ANTHROPIC_API_KEY`.
 2. Разрешить Actions создавать pull request: `gh api -X PUT repos/StarcevAlexander/advisor/actions/permissions/workflow -f default_workflow_permissions=read -F can_approve_pull_request_reviews=true`.
-3. На GitHub создать fine-grained токен только для репозитория `advisor` с правом Actions: Read and write и записать его в переменную `GITHUB_TOKEN` сервера на Render. Необязательные переменные: `GITHUB_REPO` (по умолчанию `StarcevAlexander/advisor`), `GITHUB_BRANCH` (по умолчанию `master`).
+3. На GitHub создать fine-grained токен только для репозитория `advisor` с правом Actions: Read and write и записать его в переменную `GITHUB_TOKEN` сервера (`tools/server/env.ps1`). Необязательные переменные: `GITHUB_REPO` (по умолчанию `StarcevAlexander/advisor`), `GITHUB_BRANCH` (по умолчанию `master`).
 
-ИИ правит не только `web/src` и `web/public`, но и сервер на Go (`server/`) и базу. Предохранители: в `opencode.json` агенту запрещены правки `.env`, сетевые утилиты и команды git/gh/rm; в `claude-change.yml` после работы агента диф проверяется по списку разрешённых путей — нельзя трогать `go.mod`, `go.sum`, `.env`, `.github/`, `opencode.json`, `render.yaml`, `scripts/` и зависимости; базу меняют только новой миграцией `NNN_имя.sql` (старые миграции править и удалять нельзя, слова `DROP`, `TRUNCATE`, `DELETE`, `GRANT`, `REVOKE` в миграции запрещены); для правок сервера дополнительно прогоняются `go vet`, `go test` и `go build`. Правка, затронувшая `server/`, сама не сливается: pull request остаётся открытым, и вы принимаете его вручную (переменная `AUTO_MERGE_SERVER` в начале `claude-change.yml`, `"true"` включает автослияние). Откат правки с миграцией не выполняется: git не вернёт базу, такой откат делается вручную.
+ИИ правит не только `web/src` и `web/public`, но и сервер на Rust (`server/`) и базу. Предохранители: в `opencode.json` агенту запрещены правки `.env`, сетевые утилиты и команды git/gh/rm; в `claude-change.yml` после работы агента диф проверяется по списку разрешённых путей — нельзя трогать `Cargo.toml`, `Cargo.lock`, `server/.cargo/`, `.env`, `.github/`, `opencode.json`, `scripts/` и зависимости; базу меняют только новой миграцией `NNN_имя.sql` в `server/migrations/` (старые миграции править и удалять нельзя, слова `DROP`, `TRUNCATE`, `DELETE`, `GRANT`, `REVOKE` в миграции запрещены); для правок сервера дополнительно прогоняются `cargo fmt --check`, `cargo clippy`, `cargo test` и `cargo build`. Правка, затронувшая `server/`, сама не сливается: pull request остаётся открытым, и вы принимаете его вручную (переменная `AUTO_MERGE_SERVER` в начале `claude-change.yml`, `"true"` включает автослияние). Откат правки с миграцией не выполняется: git не вернёт базу, такой откат делается вручную.
 
 Откат правки: в настройках (шестерёнка) пункт «Откатить последнюю правку» с окном подтверждения. Он вызывает `POST /api/rollback`, сервер запускает workflow `.github/workflows/claude-rollback.yml`. Workflow берёт последний принятый pull request из ветки `claude/change-*`, который ещё не откатывали (откаты помечены в описании строкой `Откат заявки №N`), делает `git revert`, прогоняет тесты и сборку, сливает откат (ветка `claude/rollback-<id>`, имя запуска `Claude rollback <id>`) и запускает публикацию. Ход отката виден в чате (`GET /api/rollback/{id}`). Если после той правки менялись те же места, откат не применится чисто: запуск завершится ошибкой и ничего не изменит. Для проверки без настоящего GitHub у сервера есть необязательная переменная `GITHUB_API_URL` (по умолчанию `https://api.github.com`).
 
@@ -101,4 +103,4 @@ Workflow `.github/workflows/deploy.yml` собирает `web/` с `--base-href=
 gh api -X POST repos/StarcevAlexander/advisor/pages -f build_type=workflow
 ```
 
-Ключ z.ai лежит только в `server/.env` (в `.gitignore`) и в переменных окружения хостинга сервера (на Render — `ZAI_API_KEY`), во фронт и в репозиторий он не попадает.
+Ключ z.ai лежит только в `server/.env` (в `.gitignore`), в секрете репозитория `ZAI_API_KEY` для workflow правок и в настройках сервера, во фронт и в репозиторий он не попадает.

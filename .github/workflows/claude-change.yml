@@ -32,7 +32,7 @@ jobs:
       REQUEST_ID: ${{ inputs.id }}
       GH_TOKEN: ${{ github.token }}
       AUTO_MERGE_SERVER: "false"
-      MIGRATIONS_DIR: server/internal/store/migrations
+      MIGRATIONS_DIR: server/migrations
     steps:
       - name: Validate request id
         run: |
@@ -45,14 +45,15 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
           cache-dependency-path: web/package-lock.json
 
-      - uses: actions/setup-go@v5
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
         with:
-          go-version-file: server/go.mod
-          cache-dependency-path: server/go.sum
+          workspaces: server
 
       - name: Install app dependencies
         working-directory: web
@@ -66,17 +67,17 @@ jobs:
           ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
         run: |
           cat > "$RUNNER_TEMP/prompt.txt" <<'PROMPT'
-          You are changing a small personal voice advisor: an Angular 22 PWA in web/ and a Go server with a Postgres database in server/. Your working directory is the repository root.
+          You are changing a small personal voice advisor: an Angular 22 PWA in web/ and a Rust server with a Postgres database in server/. Your working directory is the repository root.
           Make exactly the change described in the request below and nothing else.
           Rules:
-          - Allowed to edit: web/src/, web/public/, and server/ (Go code and new SQL migrations).
-          - Never touch: package.json, lock files, angular.json, web/scripts/, go.mod, go.sum, .github/, opencode.json, render.yaml, scripts/, any .env file, or anything else outside the allowed folders. Do not add dependencies.
-          - Database changes are made only by adding a NEW migration file in server/internal/store/migrations/ named NNN_short_name.sql with the next free number. Never edit or delete an existing migration. Migrations must only add things (CREATE TABLE, ADD COLUMN, CREATE INDEX): no DROP, TRUNCATE, DELETE, or anything that erases data.
+          - Allowed to edit: web/src/, web/public/, and server/ (Rust code in server/src and new SQL migrations in server/migrations).
+          - Never touch: package.json, lock files, angular.json, web/scripts/, server/Cargo.toml, server/Cargo.lock, server/.cargo/, .github/, opencode.json, scripts/, any .env file, or anything else outside the allowed folders. Do not add dependencies.
+          - Database changes are made only by adding a NEW migration file in server/migrations/ named NNN_short_name.sql with the next free number. Never edit or delete an existing migration. Migrations must only add things (CREATE TABLE, ADD COLUMN, CREATE INDEX): no DROP, TRUNCATE, DELETE, or anything that erases data.
           - Never weaken password checking, CORS, logging of errors, or storage of history. Never print or store secrets.
           - Frontend: follow web/AGENTS.md and match neighbouring code: signals, inject(), @if/@for, separate .html and .scss files, types in models/, constants in constants/. Keep all user-visible text in Russian.
-          - Backend: match neighbouring Go code: types in models.go, constants in constants.go, handlers in internal/httpapi, database code in internal/store.
+          - Backend: match neighbouring Rust code: models in models.rs, constants in constants.rs, HTTP handlers in src/httpapi, database code in src/store.
           - Do not write code comments.
-          - After editing run the checks for what you changed and fix any failure you caused: "npm --prefix web test -- --watch=false" and "npm --prefix web run build" for the frontend; "go -C server vet ./...", "go -C server test ./..." and "go -C server build ./..." for the server.
+          - After editing run the checks for what you changed and fix any failure you caused: "npm --prefix web test -- --watch=false" and "npm --prefix web run build" for the frontend; "cd server && cargo fmt --check && cargo clippy --all-targets && cargo test && cargo build" for the server.
           - If the request is unclear, unsafe, or would need changes outside these rules, change nothing and explain why.
           - Finish with a short plain summary in Russian of what you changed, without code.
           PROMPT
@@ -95,8 +96,8 @@ jobs:
             exit 0
           fi
 
-          outside=$(git diff --cached --name-only | grep -v -E '^(web/(src|public)/|server/)' || true)
-          protected=$(git diff --cached --name-only | grep -E '^server/(go\.mod|go\.sum)$|(^|/)\.env' || true)
+          outside=$(git diff --cached --name-only | grep -v -E '^(web/(src|public)/|server/(src|migrations)/)' || true)
+          protected=$(git diff --cached --name-only | grep -E '^server/(Cargo\.toml|Cargo\.lock|\.cargo)|(^|/)\.env' || true)
           forbidden=$(printf '%s\n%s' "$outside" "$protected" | sed '/^$/d')
           if [ -n "$forbidden" ]; then
             echo "::error::The AI touched files outside the allowed paths:"
@@ -141,9 +142,11 @@ jobs:
           npm --prefix web test -- --watch=false
           npm --prefix web run build
           if [ "$SERVER_CHANGED" = "true" ]; then
-            go -C server vet ./...
-            go -C server test ./...
-            go -C server build -o /dev/null .
+            cd server
+            cargo fmt --check
+            cargo clippy --all-targets -- -D warnings
+            cargo test
+            cargo build
           fi
 
       - name: Open the pull request

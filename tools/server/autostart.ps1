@@ -40,10 +40,12 @@ if (-not $admin) {
 Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 Get-Process -Name advisor -ErrorAction SilentlyContinue | Stop-Process -Force
 
+$env:PATH = "$env:USERPROFILE\.cargo\bin;$env:USERPROFILE\mingw-tools\mingw64\bin;$env:PATH"
 Push-Location $ServerDir
 try {
-  & go build -o $Exe .
-  if ($LASTEXITCODE -ne 0) { throw 'go build failed' }
+  & cargo build --release
+  if ($LASTEXITCODE -ne 0) { throw 'cargo build failed' }
+  Copy-Item (Join-Path $ServerDir 'target\release\advisor.exe') $Exe -Force
 } finally {
   Pop-Location
 }

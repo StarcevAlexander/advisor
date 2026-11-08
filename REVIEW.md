@@ -4,8 +4,8 @@
 
 | Уровень | Что затронуто | Кто проверяет |
 |---|---|---|
-| Высокий | `server/internal/httpapi/middleware.go` и всё про пароль/Bearer, `server/internal/config`, `server/internal/changes` (запуск правок через GitHub), миграции `server/internal/store/migrations`, `render.yaml`, `.github/workflows`, обработка вложений | Человек обязательно, ИИ-ревью только как первый проход |
-| Средний | Остальной Go-код сервера, `web/src/app/services`, вызов z.ai (`server/internal/chat`) | ИИ-ревью + человек просматривает дифф |
+| Высокий | `server/src/httpapi/middleware.rs` и всё про пароль/Bearer, `server/src/config`, `server/src/changes` (запуск правок через GitHub), миграции `server/migrations`, `server/Cargo.toml` и `server/.cargo/`, `.github/workflows`, обработка вложений | Человек обязательно, ИИ-ревью только как первый проход |
+| Средний | Остальной Rust-код сервера, `web/src/app/services`, вызов z.ai (`server/src/zai`, `server/src/chat`) | ИИ-ревью + человек просматривает дифф |
 | Низкий | Стили, вёрстка, тексты, README, тесты без изменения логики | ИИ-ревью достаточно |
 
 ## Что искать в первую очередь
@@ -20,7 +20,7 @@
 
 ## Проверки до слияния
 
-- `go vet ./... && go test ./...` в `server/`
+- `cargo fmt --check && cargo clippy --all-targets && cargo test` в `server/`
 - `npm run build` и `npm test -- --watch=false` в `web/` (с `CI=1`)
 - Изменение видимого интерфейса проверено в браузере, в том числе на ширине 375 px
 - Версия поднята хуком `.githooks/pre-commit`, файл `web/src/app/version.ts` в коммите
