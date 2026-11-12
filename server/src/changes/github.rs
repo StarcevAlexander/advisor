@@ -44,6 +44,7 @@ impl GitHub {
         }
         config.base_url = config.base_url.trim_end_matches('/').to_string();
         let http = reqwest::Client::builder()
+            .user_agent(concat!("advisor/", env!("CARGO_PKG_VERSION")))
             .timeout(REQUEST_TIMEOUT)
             .build()
             .map_err(|err| ChangesError::Request(err.to_string()))
